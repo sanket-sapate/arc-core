@@ -1,0 +1,46 @@
+name: Backend Pipeline
+on: [push, pull_request]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - apps/abc-service
+          - apps/iam-service
+          - apps/audit-service
+          - apps/cdc-worker
+          - packages/go-core
+          - packages/apisix-go-runner
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+          cache-dependency-path: |
+            ${{ matrix.service }}/go.sum
+            packages/go-core/go.sum
+
+      - name: Download Dependencies
+        run: go mod download
+        working-directory: ${{ matrix.service }}
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest
+          working-directory: ${{ matrix.service }}
+
+      - name: Test
+        run: go test -v -race -count=1 ./...
+        working-directory: ${{ matrix.service }}
+        env:
+          AUTHZ_SKIP_INIT: "true"
+
+      - name: Build
+        run: go build ./...
+        working-directory: ${{ matrix.service }}

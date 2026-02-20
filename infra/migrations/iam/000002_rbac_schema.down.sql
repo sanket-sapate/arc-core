@@ -1,0 +1,13 @@
+-- Reverse 000002_rbac_schema
+DROP TABLE IF EXISTS user_organization_roles;
+DROP TABLE IF EXISTS role_permissions;
+DROP TABLE IF EXISTS roles;
+DROP TABLE IF EXISTS organizations;
+
+-- Restore stale v1 columns so the previous migration is consistent
+ALTER TABLE users ADD COLUMN IF NOT EXISTS tenant_id UUID;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS external_id VARCHAR(255);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name VARCHAR(255);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) NOT NULL DEFAULT 'member';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();

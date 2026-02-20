@@ -1,0 +1,306 @@
+basePath: /
+definitions:
+  handler.createCategoryRequest:
+    properties:
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  handler.createItemRequest:
+    properties:
+      category_id:
+        type: string
+      description:
+        type: string
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  handler.transitionStatusRequest:
+    properties:
+      status:
+        type: string
+    required:
+    - status
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Domain service for items and categories.
+  title: ABC Service API
+  version: "1.0"
+paths:
+  /api/v1/categories:
+    get:
+      description: Returns all categories scoped to the caller's organization.
+      operationId: list-categories
+      parameters:
+      - description: Organization UUID
+        in: header
+        name: X-Internal-Org-Id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: object
+            type: array
+        "400":
+          description: Validation Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List all categories for an organization
+      tags:
+      - categories
+    post:
+      consumes:
+      - application/json
+      description: Creates a named category within the organization for item classification.
+      operationId: create-category
+      parameters:
+      - description: Organization UUID
+        in: header
+        name: X-Internal-Org-Id
+        required: true
+        type: string
+      - description: Category Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.createCategoryRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: object
+        "400":
+          description: Validation Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Business Rule Violation
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create a new category
+      tags:
+      - categories
+  /api/v1/items:
+    get:
+      description: Returns all non-deleted items scoped to the caller's organization.
+      operationId: list-items
+      parameters:
+      - description: Organization UUID
+        in: header
+        name: X-Internal-Org-Id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: object
+            type: array
+        "400":
+          description: Validation Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: List all items for an organization
+      tags:
+      - items
+    post:
+      consumes:
+      - application/json
+      description: Instantiates a new item within the tenant organization in DRAFT
+        status.
+      operationId: create-item
+      parameters:
+      - description: Organization UUID
+        in: header
+        name: X-Internal-Org-Id
+        required: true
+        type: string
+      - description: Item Payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.createItemRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            type: object
+        "400":
+          description: Validation Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Business Rule Violation
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create a new item
+      tags:
+      - items
+  /api/v1/items/{id}:
+    delete:
+      description: Marks an item as deleted without physical removal from storage.
+        The item will no longer appear in list queries.
+      operationId: soft-delete-item
+      parameters:
+      - description: Organization UUID
+        in: header
+        name: X-Internal-Org-Id
+        required: true
+        type: string
+      - description: Item UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Validation Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Soft-delete an item
+      tags:
+      - items
+    get:
+      description: Fetches a specific item by UUID, isolated by organization boundary.
+      operationId: get-item
+      parameters:
+      - description: Organization UUID
+        in: header
+        name: X-Internal-Org-Id
+        required: true
+        type: string
+      - description: Item UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Validation Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Retrieve an item
+      tags:
+      - items
+  /api/v1/items/{id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: Advances the item through the lifecycle state machine (DRAFT →
+        AVAILABLE → ALLOCATED → MAINTENANCE → RETIRED). Invalid transitions are rejected.
+      operationId: transition-item-status
+      parameters:
+      - description: Organization UUID
+        in: header
+        name: X-Internal-Org-Id
+        required: true
+        type: string
+      - description: Item UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Target Status
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.transitionStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Validation Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "422":
+          description: Invalid State Transition
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Transition item status
+      tags:
+      - items
+swagger: "2.0"

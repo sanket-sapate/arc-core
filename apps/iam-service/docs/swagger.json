@@ -1,0 +1,109 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Identity and Access Management service — webhook ingress and gRPC authorization.",
+        "title": "IAM Service API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8083",
+    "basePath": "/",
+    "paths": {
+        "/webhooks/keycloak": {
+            "post": {
+                "description": "Receives and processes identity synchronization events from Keycloak. Authenticated via a pre-shared key in the X-Webhook-Secret header (not via APISIX authz plugin).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "webhooks"
+                ],
+                "summary": "Keycloak Event Webhook",
+                "operationId": "handle-keycloak-event",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pre-shared Key",
+                        "name": "X-Webhook-Secret",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Keycloak Event Payload",
+                        "name": "payload",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.keycloakEvent"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Processed",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid Payload",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Sync Failure",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "handler.keycloakEvent": {
+            "type": "object",
+            "properties": {
+                "details": {
+                    "type": "object",
+                    "properties": {
+                        "email": {
+                            "type": "string"
+                        },
+                        "username": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "type": {
+                    "type": "string"
+                },
+                "userId": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,19 @@
+syntax = "proto3";
+package iam.v1;
+
+option go_package = "github.com/arc-self/packages/go-core/proto/iam/v1;iamv1";
+
+service IAMService {
+  rpc EvaluateAccess(EvaluateAccessRequest) returns (EvaluateAccessResponse);
+}
+
+message EvaluateAccessRequest {
+  string user_id = 1;
+  string organization_id = 2;
+  string permission_slug = 3; // e.g. "item:read", "iam:manage"
+}
+
+message EvaluateAccessResponse {
+  bool allowed = 1;
+  repeated string permissions = 2; // All permission slugs the user holds in this org
+}

@@ -1,0 +1,74 @@
+basePath: /
+definitions:
+  handler.keycloakEvent:
+    properties:
+      details:
+        properties:
+          email:
+            type: string
+          username:
+            type: string
+        type: object
+      type:
+        type: string
+      userId:
+        type: string
+    type: object
+host: localhost:8083
+info:
+  contact: {}
+  description: Identity and Access Management service — webhook ingress and gRPC authorization.
+  title: IAM Service API
+  version: "1.0"
+paths:
+  /webhooks/keycloak:
+    post:
+      consumes:
+      - application/json
+      description: Receives and processes identity synchronization events from Keycloak.
+        Authenticated via a pre-shared key in the X-Webhook-Secret header (not via
+        APISIX authz plugin).
+      operationId: handle-keycloak-event
+      parameters:
+      - description: Pre-shared Key
+        in: header
+        name: X-Webhook-Secret
+        required: true
+        type: string
+      - description: Keycloak Event Payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/handler.keycloakEvent'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Processed
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Invalid Payload
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Sync Failure
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Keycloak Event Webhook
+      tags:
+      - webhooks
+swagger: "2.0"
