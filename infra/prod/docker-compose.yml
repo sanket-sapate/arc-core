@@ -1,0 +1,231 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Production Docker Compose
+#
+# Prerequisites:
+#   1. Copy infra/prod/.env.example → infra/prod/.env.prod and fill in values.
+#   2. Build service images: make prod-build
+#   3. First-time only: make prod-init  (initialises Vault, runs migrations)
+#   4. Start: make prod-up
+#   5. After vault container restart: make prod-unseal
+#
+# All Go service ports are NOT exposed to the host.
+# All traffic enters through the APISIX gateway on port 443/80.
+# ─────────────────────────────────────────────────────────────────────────────
+
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  env_file: .env.prod
+  networks:
+    - internal
+
+x-go-service: &go-service
+  <<: *service-defaults
+  depends_on:
+    vault:
+      condition: service_healthy
+    nats:
+      condition: service_started
+    migrator:
+      condition: service_completed_successfully
+
+services:
+
+  # ── Infrastructure ──────────────────────────────────────────────────────────
+
+  postgres:
+    image: postgres:15
+    <<: *service-defaults
+    command: ["postgres", "-c", "wal_level=logical", "-c", "max_connections=200"]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  nats:
+    image: nats:latest
+    <<: *service-defaults
+    command: ["-js", "--store_dir=/data/nats", "-m", "8222"]
+    volumes:
+      - nats_data:/data/nats
+    # No healthcheck — nats:latest has no shell to run probe commands.
+    # Services depending on NATS use service_started and retry on connection.
+
+  vault:
+    image: hashicorp/vault:latest
+    <<: *service-defaults
+    user: root
+    # chown the data dir (Docker named volumes are root-owned by default)
+    # then drop to vault user and start the server
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        chown -R vault:vault /vault/data
+        exec su-exec vault vault server -config=/vault/config/vault.hcl
+    environment:
+      VAULT_ADDR: http://127.0.0.1:8200
+      SKIP_SETCAP: "true"
+    volumes:
+      - vault_data:/vault/data
+      - ./vault.hcl:/vault/config/vault.hcl:ro
+    cap_add:
+      - IPC_LOCK
+    healthcheck:
+      # Healthy once the API is responding (sealed or not — init script handles unseal)
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8200/v1/sys/health?uninitcode=200&sealedcode=200 > /dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    <<: *service-defaults
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── One-shot migration runner ───────────────────────────────────────────────
+  # Runs psql migrations then exits (code 0 = success).
+  # All Go services depend on this completing before they start.
+
+  migrator:
+    image: arc/migrator:${IMAGE_TAG:-latest}
+    <<: *service-defaults
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER}
+      PGDATABASE: ${POSTGRES_DB}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  # ── Go services ────────────────────────────────────────────────────────────
+
+  iam-service:
+    <<: *go-service
+    image: arc/iam-service:${IMAGE_TAG:-latest}
+    environment:
+      VAULT_ADDR: ${VAULT_ADDR}
+      VAULT_TOKEN: ${VAULT_ROOT_TOKEN}
+      VAULT_SECRET_PATH: ${VAULT_SECRET_PATH_PREFIX}/iam-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+
+  audit-service:
+    <<: *go-service
+    image: arc/audit-service:${IMAGE_TAG:-latest}
+    environment:
+      VAULT_ADDR: ${VAULT_ADDR}
+      VAULT_TOKEN: ${VAULT_ROOT_TOKEN}
+      VAULT_SECRET_PATH: ${VAULT_SECRET_PATH_PREFIX}/audit-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+
+  discovery-service:
+    <<: *go-service
+    image: arc/discovery-service:${IMAGE_TAG:-latest}
+    environment:
+      VAULT_ADDR: ${VAULT_ADDR}
+      VAULT_TOKEN: ${VAULT_ROOT_TOKEN}
+      VAULT_SECRET_PATH: ${VAULT_SECRET_PATH_PREFIX}/discovery-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+
+  trm-service:
+    <<: *go-service
+    image: arc/trm-service:${IMAGE_TAG:-latest}
+    environment:
+      VAULT_ADDR: ${VAULT_ADDR}
+      VAULT_TOKEN: ${VAULT_ROOT_TOKEN}
+      VAULT_SECRET_PATH: ${VAULT_SECRET_PATH_PREFIX}/trm-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+
+  privacy-service:
+    <<: *go-service
+    image: arc/privacy-service:${IMAGE_TAG:-latest}
+    environment:
+      VAULT_ADDR: ${VAULT_ADDR}
+      VAULT_TOKEN: ${VAULT_ROOT_TOKEN}
+      VAULT_SECRET_PATH: ${VAULT_SECRET_PATH_PREFIX}/privacy-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+
+  cdc-worker:
+    <<: *go-service
+    image: arc/cdc-worker:${IMAGE_TAG:-latest}
+    environment:
+      VAULT_ADDR: ${VAULT_ADDR}
+      VAULT_TOKEN: ${VAULT_ROOT_TOKEN}
+      VAULT_SECRET_PATH: ${VAULT_SECRET_PATH_PREFIX}/cdc-worker
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+
+  # ── Keycloak ────────────────────────────────────────────────────────────────
+  keycloak:
+    image: arc/keycloak:${IMAGE_TAG:-latest}
+    <<: *service-defaults
+    command: start-dev --import-realm
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_SPI_EVENTS_LISTENER_HTTP_SERVER_URI: http://iam-service:8080/webhooks/keycloak
+      KC_SPI_EVENTS_LISTENER_HTTP_SHARED_SECRET: ${WEBHOOK_PSK}
+    depends_on:
+      - iam-service
+
+  # ── Observability ───────────────────────────────────────────────────────────
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    <<: *service-defaults
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+
+  # ── APISIX gateway — THE ONLY PORT EXPOSED TO THE HOST ─────────────────────
+  apisix-go-runner:
+    image: arc/apisix-go-runner:${IMAGE_TAG:-latest}
+    <<: *service-defaults
+    command: ["run"]   # the go-runner binary requires the 'run' subcommand
+    environment:
+      APISIX_LISTEN_ADDRESS: unix:/tmp/runner.sock
+      REDIS_URL: redis:6379
+      IAM_GRPC_ADDR: iam-service:50051
+      JWKS_URL: http://keycloak:8080/realms/arc/protocol/openid-connect/certs
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+    volumes:
+      - runner_sock:/tmp
+    depends_on:
+      - redis
+      - iam-service
+
+  apisix:
+    image: apache/apisix:latest
+    <<: *service-defaults
+    ports:
+      - "80:9080"
+      - "443:9443"
+    volumes:
+      - ../local/apisix_conf/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
+      - ../local/apisix_conf/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+      - runner_sock:/tmp
+    depends_on:
+      - apisix-go-runner
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  nats_data:
+  vault_data:
+  redis_data:
+  runner_sock:

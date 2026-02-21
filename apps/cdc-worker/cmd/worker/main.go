@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -57,6 +58,30 @@ func main() {
 	pgURL := secrets["PG_URL"].(string)
 	natsURL := secrets["NATS_URL"].(string)
 
+	// pgconn (replication connection) needs replication=database in the DSN.
+	// pgx (normal query connection) does NOT accept that param — it causes a
+	// "syntax error at or near" postgres error.
+	// Allow an explicit PG_REPLICATION_URL override; otherwise derive it by
+	// appending the param to PG_URL and use the plain PG_URL for queries.
+	pgReplicationURL := pgURL
+	if v, ok := secrets["PG_REPLICATION_URL"]; ok {
+		pgReplicationURL = v.(string)
+	} else {
+		// Append replication=database if not already present
+		if !strings.Contains(pgURL, "replication=") {
+			if strings.Contains(pgURL, "?") {
+				pgReplicationURL = pgURL + "&replication=database"
+			} else {
+				pgReplicationURL = pgURL + "?replication=database"
+			}
+		}
+	}
+	// Strip replication=database from pgURL for normal pgx queries
+	pgQueryURL := strings.ReplaceAll(pgURL, "?replication=database&", "?")
+	pgQueryURL = strings.ReplaceAll(pgQueryURL, "&replication=database", "")
+	pgQueryURL = strings.ReplaceAll(pgQueryURL, "?replication=database", "")
+
+
 	// --- Graceful Shutdown Context ---
 	// Fixes FLAW-2.4: the original loop ran with context.Background() and
 	// had no signal handler, so deferred NATS/conn closes never ran cleanly.
@@ -75,7 +100,7 @@ func main() {
 	}
 
 	// --- Postgres Replication Connection ---
-	conn, err := pgconn.Connect(ctx, pgURL)
+	conn, err := pgconn.Connect(ctx, pgReplicationURL)
 	if err != nil {
 		logger.Fatal("failed to connect to postgres for replication", zap.Error(err))
 	}
@@ -112,7 +137,7 @@ func main() {
 	// because the logical replication connection (pgconn) can only carry WAL
 	// protocol messages and does not support SQL queries.
 	var confirmedLSNStr *string // pointer — detects NULL from pg_replication_slots
-	pgxConn, err := pgx.Connect(ctx, pgURL)
+	pgxConn, err := pgx.Connect(ctx, pgQueryURL)
 	if err != nil {
 		logger.Fatal("failed to open pgx connection for LSN resolution", zap.Error(err))
 	}

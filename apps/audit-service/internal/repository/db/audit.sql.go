@@ -7,33 +7,123 @@ package db
 
 import (
 	"context"
+	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const insertAuditLog = `-- name: InsertAuditLog :exec
-INSERT INTO audit_logs (event_id, aggregate_type, aggregate_id, actor_id, event_type, payload)
-VALUES ($1, $2, $3, $4, $5, $6)
-ON CONFLICT (event_id) DO NOTHING
-`
+// ── InsertAuditLog ────────────────────────────────────────────────────────
+
+const insertAuditLog = `INSERT INTO audit_logs (
+    event_id, organization_id, source_service, aggregate_type, aggregate_id,
+    event_type, payload, actor_id, created_at
+) VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
+) ON CONFLICT (event_id) DO NOTHING`
 
 type InsertAuditLogParams struct {
-	EventID       pgtype.UUID
-	AggregateType string
-	AggregateID   pgtype.UUID
-	ActorID       pgtype.UUID
-	EventType     string
-	Payload       []byte
+	EventID        pgtype.UUID
+	OrganizationID pgtype.UUID
+	SourceService  string
+	AggregateType  string
+	AggregateID    string
+	EventType      string
+	Payload        []byte
+	ActorID        pgtype.UUID // zero-value (Valid=false) when not present
+	CreatedAt      time.Time
 }
 
 func (q *Queries) InsertAuditLog(ctx context.Context, arg InsertAuditLogParams) error {
 	_, err := q.db.Exec(ctx, insertAuditLog,
 		arg.EventID,
+		arg.OrganizationID,
+		arg.SourceService,
 		arg.AggregateType,
 		arg.AggregateID,
-		arg.ActorID,
 		arg.EventType,
 		arg.Payload,
+		arg.ActorID,
+		arg.CreatedAt,
 	)
 	return err
+}
+
+// ── ListAuditLogs ─────────────────────────────────────────────────────────
+
+const listAuditLogs = `SELECT id, event_id, organization_id, source_service, aggregate_type, aggregate_id,
+       event_type, payload, actor_id, created_at
+FROM audit_logs
+WHERE organization_id = $1
+ORDER BY created_at DESC
+LIMIT $2 OFFSET $3`
+
+type ListAuditLogsParams struct {
+	OrganizationID pgtype.UUID
+	Limit          int32
+	Offset         int32
+}
+
+func (q *Queries) ListAuditLogs(ctx context.Context, arg ListAuditLogsParams) ([]AuditLog, error) {
+	rows, err := q.db.Query(ctx, listAuditLogs, arg.OrganizationID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	pgRows := rows.(pgx.Rows)
+	defer pgRows.Close()
+	var items []AuditLog
+	for pgRows.Next() {
+		var i AuditLog
+		if err := pgRows.Scan(
+			&i.ID, &i.EventID, &i.OrganizationID, &i.SourceService,
+			&i.AggregateType, &i.AggregateID, &i.EventType,
+			&i.Payload, &i.ActorID, &i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	return items, pgRows.Err()
+}
+
+// ── ListAuditLogsByAggregate ──────────────────────────────────────────────
+
+const listAuditLogsByAggregate = `SELECT id, event_id, organization_id, source_service, aggregate_type, aggregate_id,
+       event_type, payload, actor_id, created_at
+FROM audit_logs
+WHERE organization_id = $1
+  AND aggregate_type = $2
+  AND aggregate_id = $3
+ORDER BY created_at DESC
+LIMIT $4 OFFSET $5`
+
+type ListAuditLogsByAggregateParams struct {
+	OrganizationID pgtype.UUID
+	AggregateType  string
+	AggregateID    string
+	Limit          int32
+	Offset         int32
+}
+
+func (q *Queries) ListAuditLogsByAggregate(ctx context.Context, arg ListAuditLogsByAggregateParams) ([]AuditLog, error) {
+	rows, err := q.db.Query(ctx, listAuditLogsByAggregate,
+		arg.OrganizationID, arg.AggregateType, arg.AggregateID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	pgRows := rows.(pgx.Rows)
+	defer pgRows.Close()
+	var items []AuditLog
+	for pgRows.Next() {
+		var i AuditLog
+		if err := pgRows.Scan(
+			&i.ID, &i.EventID, &i.OrganizationID, &i.SourceService,
+			&i.AggregateType, &i.AggregateID, &i.EventType,
+			&i.Payload, &i.ActorID, &i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	return items, pgRows.Err()
 }

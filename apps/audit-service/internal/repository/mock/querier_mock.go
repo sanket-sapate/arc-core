@@ -54,3 +54,33 @@ func (mr *MockQuerierMockRecorder) InsertAuditLog(ctx, arg any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InsertAuditLog", reflect.TypeOf((*MockQuerier)(nil).InsertAuditLog), ctx, arg)
 }
+
+// ListAuditLogs mocks base method.
+func (m *MockQuerier) ListAuditLogs(ctx context.Context, arg db.ListAuditLogsParams) ([]db.AuditLog, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListAuditLogs", ctx, arg)
+	ret0, _ := ret[0].([]db.AuditLog)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListAuditLogs indicates an expected call of ListAuditLogs.
+func (mr *MockQuerierMockRecorder) ListAuditLogs(ctx, arg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListAuditLogs", reflect.TypeOf((*MockQuerier)(nil).ListAuditLogs), ctx, arg)
+}
+
+// ListAuditLogsByAggregate mocks base method.
+func (m *MockQuerier) ListAuditLogsByAggregate(ctx context.Context, arg db.ListAuditLogsByAggregateParams) ([]db.AuditLog, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListAuditLogsByAggregate", ctx, arg)
+	ret0, _ := ret[0].([]db.AuditLog)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListAuditLogsByAggregate indicates an expected call of ListAuditLogsByAggregate.
+func (mr *MockQuerierMockRecorder) ListAuditLogsByAggregate(ctx, arg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListAuditLogsByAggregate", reflect.TypeOf((*MockQuerier)(nil).ListAuditLogsByAggregate), ctx, arg)
+}

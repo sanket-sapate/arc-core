@@ -14,6 +14,11 @@ upstreams:
       "iam-service:8080": 1
     type: roundrobin
 
+  - id: privacy-service-upstream
+    nodes:
+      "privacy-service:8080": 1
+    type: roundrobin
+
 routes:
   # ─── ABC Service Routes (method-scoped for fine-grained authz) ───
   # Fixes FLAW-1.3: the original single route used "item:read" for ALL
@@ -175,5 +180,90 @@ routes:
       cors:
         allow_origins: "*"
         allow_methods: "GET,OPTIONS"
+
+  # ─── Privacy Service Routes (method-scoped for fine-grained authz) ───
+  - id: privacy-domain-read
+    uri: /api/privacy/*
+    methods: ["GET", "OPTIONS"]
+    upstream_id: privacy-service-upstream
+    plugins:
+      limit-count:
+        count: 100
+        time_window: 60
+        rejected_code: 429
+        key: "http_x_organization_id"
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        expose_headers: "*"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/privacy/(.*)", "/$1"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "privacy:read"}'
+
+  - id: privacy-domain-write
+    uri: /api/privacy/*
+    methods: ["POST", "PATCH", "PUT"]
+    upstream_id: privacy-service-upstream
+    plugins:
+      limit-count:
+        count: 100
+        time_window: 60
+        rejected_code: 429
+        key: "http_x_organization_id"
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        expose_headers: "*"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/privacy/(.*)", "/$1"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "privacy:write"}'
+
+  - id: privacy-domain-delete
+    uri: /api/privacy/*
+    methods: ["DELETE"]
+    upstream_id: privacy-service-upstream
+    plugins:
+      limit-count:
+        count: 100
+        time_window: 60
+        rejected_code: 429
+        key: "http_x_organization_id"
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        expose_headers: "*"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/privacy/(.*)", "/$1"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "privacy:delete"}'
 
 #END

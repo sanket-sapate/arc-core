@@ -1,10 +1,15 @@
 FROM quay.io/keycloak/keycloak:latest
 
-# Install the keycloak-event-listener-http provider JAR.
-# This SPI sends HTTP POST webhooks on Keycloak user events (REGISTER, LOGIN, etc.)
-# Source: https://github.com/vymalo/keycloak-webhook
+# Install the keycloak-webhook providers.
+# Since v0.8.3 the project is split into modules; the HTTP provider depends on
+# core, so both JARs must be present in /opt/keycloak/providers/.
+# https://github.com/vymalo/keycloak-webhook/releases/tag/v0.10.0-rc.1
 ADD --chown=keycloak:keycloak \
-  https://github.com/vymalo/keycloak-webhook/releases/download/v0.5.0/keycloak-event-listener-http-0.5.0.jar \
+  https://github.com/vymalo/keycloak-webhook/releases/download/v0.10.0-rc.1/keycloak-webhook-provider-core-0.10.0-rc.1-all.jar \
+  /opt/keycloak/providers/keycloak-webhook-provider-core.jar
+
+ADD --chown=keycloak:keycloak \
+  https://github.com/vymalo/keycloak-webhook/releases/download/v0.10.0-rc.1/keycloak-webhook-provider-http-0.10.0-rc.1-all.jar \
   /opt/keycloak/providers/keycloak-event-listener-http.jar
 
 # Pre-build the optimized server image

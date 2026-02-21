@@ -1,10 +1,19 @@
+# Default logging uses json-file (built-in, no plugin required).
+# To enable Loki push logging, install the Docker Loki plugin first:
+#   docker plugin install grafana/loki-docker-driver:latest --alias loki --grant-all-permissions
+# Then replace the block below with:
+#   x-logging: &default-logging
+#     driver: loki
+#     options:
+#       loki-url: "http://localhost:3100/loki/api/v1/push"
+#       loki-retries: "2"
+#       loki-max-backoff: "800ms"
+#       loki-timeout: "1s"
 x-logging: &default-logging
-  driver: loki
+  driver: json-file
   options:
-    loki-url: "http://localhost:3100/loki/api/v1/push"
-    loki-retries: "2"
-    loki-max-backoff: "800ms"
-    loki-timeout: "1s"
+    max-size: "10m"
+    max-file: "3"
 
 services:
   postgres:
@@ -26,12 +35,13 @@ services:
 
   nats:
     image: nats:latest
-    command: ["-c", "/etc/nats/nats.conf", "-js"]
+    # JetStream enabled via CLI flags — avoids the nats.conf bind-mount directory issue.
+    command: ["-js", "--store_dir=/data/nats", "-m", "8222"]
     ports:
       - "4222:4222"
       - "8222:8222"
     volumes:
-      - ./nats_conf/nats.conf:/etc/nats/nats.conf
+      - nats_data:/data/nats
 
   keycloak:
     build:
@@ -112,9 +122,6 @@ services:
       - ../../:/workspace
     working_dir: /workspace/apps/iam-service
     command: ["go", "run", "./cmd/api"]
-    ports:
-      - "8083:8080"
-      - "50051:50051"
     depends_on:
       - postgres
       - nats
@@ -132,6 +139,42 @@ services:
     volumes:
       - ../../:/workspace
     working_dir: /workspace/apps/audit-service
+    command: ["go", "run", "./cmd/api"]
+    depends_on:
+      - postgres
+      - nats
+      - vault
+      - jaeger
+    logging: *default-logging
+
+  discovery-service:
+    image: golang:1.26
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: root
+      VAULT_SECRET_PATH: secret/data/arc/discovery-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4317
+    volumes:
+      - ../../:/workspace
+    working_dir: /workspace/apps/discovery-service
+    command: ["go", "run", "./cmd/api"]
+    depends_on:
+      - postgres
+      - nats
+      - vault
+      - jaeger
+    logging: *default-logging
+
+  trm-service:
+    image: golang:1.26
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: root
+      VAULT_SECRET_PATH: secret/data/arc/trm-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4317
+    volumes:
+      - ../../:/workspace
+    working_dir: /workspace/apps/trm-service
     command: ["go", "run", "./cmd/api"]
     depends_on:
       - postgres
@@ -192,3 +235,4 @@ services:
 
 volumes:
   runner-sock:
+  nats_data:

@@ -9,11 +9,14 @@ import (
 )
 
 type AuditLog struct {
-	EventID       pgtype.UUID
-	AggregateType string
-	AggregateID   pgtype.UUID
-	ActorID       pgtype.UUID
-	EventType     string
-	Payload       []byte
-	RecordedAt    pgtype.Timestamptz
+	ID             pgtype.UUID
+	EventID        pgtype.UUID
+	OrganizationID pgtype.UUID
+	SourceService  string
+	AggregateType  string
+	AggregateID    string
+	EventType      string
+	Payload        []byte
+	ActorID        pgtype.UUID  // nullable — not all events are human-initiated
+	CreatedAt      pgtype.Timestamptz
 }

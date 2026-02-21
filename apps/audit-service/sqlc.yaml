@@ -2,7 +2,7 @@ version: "2"
 sql:
   - engine: "postgresql"
     queries: "internal/repository/queries"
-    schema: "infra/migrations"
+    schema: "../../infra/migrations/audit-service"
     gen:
       go:
         package: "db"

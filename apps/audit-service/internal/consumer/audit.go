@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/nats-io/nats.go"
@@ -127,15 +128,16 @@ func (c *AuditConsumer) processEvent(ctx context.Context, data []byte) error {
 		c.logger.Error("Invalid event ID UUID", zap.String("id", event.ID), zap.Error(err))
 		return fmt.Errorf("malformed payload")
 	}
-	aggregateID, err := parseStringUUID(event.AggregateID)
-	if err != nil {
-		c.logger.Error("Invalid aggregate_id UUID", zap.String("aggregate_id", event.AggregateID), zap.Error(err))
-		return fmt.Errorf("malformed payload")
-	}
-	actorID, err := parseStringUUID(event.ActorID)
-	if err != nil {
-		c.logger.Error("Invalid actor_id UUID", zap.String("actor_id", event.ActorID), zap.Error(err))
-		return fmt.Errorf("malformed payload")
+	aggregateID := event.AggregateID
+
+	// actor_id is optional — parse it if present; leave zero-value if empty.
+	var actorID pgtype.UUID
+	if event.ActorID != "" {
+		actorID, err = parseStringUUID(event.ActorID)
+		if err != nil {
+			c.logger.Error("Invalid actor_id UUID", zap.String("actor_id", event.ActorID), zap.Error(err))
+			return fmt.Errorf("malformed payload")
+		}
 	}
 
 	// Extract trace context from the event payload (json.RawMessage preserves
@@ -150,13 +152,26 @@ func (c *AuditConsumer) processEvent(ctx context.Context, data []byte) error {
 	)
 	defer span.End()
 
+	// organization_id may not be present in legacy events — zero UUID is acceptable.
+	var orgID pgtype.UUID
+	// Best-effort: extract from payload if the producing service embedded it.
+	var payloadMap map[string]interface{}
+	if err := json.Unmarshal(event.Payload, &payloadMap); err == nil {
+		if oid, ok := payloadMap["organization_id"].(string); ok && oid != "" {
+			orgID, _ = parseStringUUID(oid)
+		}
+	}
+
 	err = c.querier.InsertAuditLog(ctx, db.InsertAuditLogParams{
-		EventID:       eventID,
-		AggregateType: event.AggregateType,
-		AggregateID:   aggregateID,
-		ActorID:       actorID,
-		EventType:     event.Type,
-		Payload:       []byte(event.Payload), // json.RawMessage → []byte: zero-copy, correct JSONB value
+		EventID:        eventID,
+		OrganizationID: orgID,
+		SourceService:  "legacy", // this consumer handles un-routed outbox.> messages
+		AggregateType:  event.AggregateType,
+		AggregateID:    aggregateID,
+		EventType:      event.Type,
+		Payload:        []byte(event.Payload), // json.RawMessage → []byte: zero-copy, correct JSONB value
+		ActorID:        actorID,
+		CreatedAt:      time.Now().UTC(),
 	})
 
 	if err != nil {

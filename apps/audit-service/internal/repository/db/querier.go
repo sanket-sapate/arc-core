@@ -9,7 +9,17 @@ import (
 )
 
 type Querier interface {
+	// InsertAuditLog persists a single event. ON CONFLICT DO NOTHING makes it
+	// idempotent — NATS redelivery of the same event_id is safely ignored.
 	InsertAuditLog(ctx context.Context, arg InsertAuditLogParams) error
+
+	// ListAuditLogs returns all logs for an organisation, newest first, with
+	// LIMIT/OFFSET pagination.
+	ListAuditLogs(ctx context.Context, arg ListAuditLogsParams) ([]AuditLog, error)
+
+	// ListAuditLogsByAggregate scopes the list to a specific aggregate (e.g. a
+	// single vendor, DPA, or user), enabling per-resource audit trails.
+	ListAuditLogsByAggregate(ctx context.Context, arg ListAuditLogsByAggregateParams) ([]AuditLog, error)
 }
 
 var _ Querier = (*Queries)(nil)

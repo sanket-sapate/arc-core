@@ -1,0 +1,35 @@
+# ── Never needed in Go builds ────────────────────────────────────────────────
+.git
+.gitignore
+*.md
+docs/
+
+# Frontend (large node_modules tree, not needed for Go builds)
+apps/frontend/
+**/node_modules/
+
+# Prod env (secrets — must not end up in image layers)
+infra/prod/.env.prod
+infra/prod/vault-init.json
+
+# Local dev infra (not needed in service images)
+infra/local/
+
+# Prod secrets — must NEVER end up in an image layer
+# (infra/prod/*.sh and infra/migrations/ are needed by Dockerfile.migrator)
+infra/prod/.env.prod
+infra/prod/vault-init.json
+
+# Test files (keep source but skip test files to reduce context slightly)
+**/*_test.go
+**/testdata/
+
+# Editor / OS
+.vscode/
+.idea/
+**/*.swp
+**/*.DS_Store
+Thumbs.db
+
+# Previously built binaries
+**/bin/

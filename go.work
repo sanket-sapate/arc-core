@@ -4,8 +4,10 @@ use (
 	./apps/abc-service
 	./apps/audit-service
 	./apps/cdc-worker
-	./apps/def-service
+	./apps/discovery-service
 	./apps/iam-service
+	./apps/privacy-service
+	./apps/trm-service
 	./packages/apisix-go-runner
 	./packages/go-core
 )

@@ -1,0 +1,7 @@
+DROP TABLE IF EXISTS outbox_events;
+DROP TABLE IF EXISTS privacy_requests;
+DROP TABLE IF EXISTS ropas;
+DROP TABLE IF EXISTS dpias;
+DROP TABLE IF EXISTS consent_forms;
+DROP TABLE IF EXISTS purposes;
+DROP TABLE IF EXISTS cookie_banners;
