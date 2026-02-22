@@ -58,5 +58,13 @@ docker exec \
       PG_URL='postgres://postgres:password@postgres:5432/arc_db?sslmode=disable' \
       NATS_URL='nats://nats:4222'
 
+    vault kv put secret/arc/public-api-service \
+      REDIS_URL='redis://redis:6379/0' \
+      NATS_URL='nats://nats:4222'
+
+    vault kv put secret/arc/notification-service \
+      PG_URL='postgres://postgres:password@postgres:5432/arc_db?sslmode=disable' \
+      NATS_URL='nats://nats:4222'
+
     echo '✓ All secrets seeded'
   "

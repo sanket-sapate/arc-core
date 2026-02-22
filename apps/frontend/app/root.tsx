@@ -9,9 +9,10 @@ import {
 
 import type { Route } from "./+types/root";
 import "./app.css";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AuthProvider } from "react-oidc-context";
-import { useState } from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "~/lib/api";
+import { AuthProvider } from "~/providers/AuthProvider";
+import { Toaster } from "~/components/ui/sonner";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -26,20 +27,14 @@ export const links: Route.LinksFunction = () => [
   },
 ];
 
-const oidcConfig = {
-  authority: "http://localhost:8080/realms/arc",
-  client_id: "arc-frontend",
-  redirect_uri: "http://localhost:5173",
-  response_type: "code",
-  scope: "openid profile email",
-};
-
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>ARC GRC Platform</title>
+        <meta name="description" content="Enterprise Governance, Risk and Compliance Platform" />
         <Meta />
         <Links />
       </head>
@@ -52,21 +47,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-
-
 export default function App() {
-  const [queryClient] = useState(() => new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: 60 * 1000,
-      },
-    },
-  }));
-
   return (
-    <AuthProvider {...oidcConfig}>
+    <AuthProvider>
       <QueryClientProvider client={queryClient}>
         <Outlet />
+        <Toaster richColors position="top-right" />
       </QueryClientProvider>
     </AuthProvider>
   );

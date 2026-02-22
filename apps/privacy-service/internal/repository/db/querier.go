@@ -47,6 +47,9 @@ type Querier interface {
 
 	// Outbox
 	InsertOutboxEvent(ctx context.Context, arg InsertOutboxEventParams) error
+
+	// Cookie Consents (written by the NATS consent consumer)
+	InsertCookieConsent(ctx context.Context, arg InsertCookieConsentParams) error
 }
 
 var _ Querier = (*Queries)(nil)

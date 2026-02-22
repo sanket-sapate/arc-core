@@ -1,15 +1,8 @@
-import type { Route } from "./+types/home";
 import { Header } from "~/components/shared/Header";
 import { useStore } from "~/store/useStore";
 import { Button } from "~/components/ui/button";
 import { useHealthCheck } from "~/hooks/use-health-check";
 
-export function meta({ }: Route.MetaArgs) {
-  return [
-    { title: "ARC Monorepo App" },
-    { name: "description", content: "Welcome to ARC!" },
-  ];
-}
 
 export default function Home() {
   const { count, increment } = useStore();

@@ -6,19 +6,9 @@ plugins:
 ext-plugin:
   path_for_test: /tmp/runner.sock
 deployment:
-  etcd:
-    prefix: /apisix
-    host:
-    - http://127.0.0.1:2379
-    tls:
-      verify: true
-    watch_timeout: 50
-    startup_retry: 2
-    timeout: 30
-  role: traditional
-  role_traditional:
+  role: data_plane
+  role_data_plane:
     config_provider: yaml
-  config_provider: yaml
   admin:
     enable_admin_cors: true
     admin_api_version: v3
@@ -177,22 +167,13 @@ apisix:
       name: memory_cache
   enable_resolv_search_opt: true
   enable_dev_mode: false
-  enable_admin: true
+  enable_admin: false
 stream_plugins:
 - ip-restriction
 - limit-conn
 - mqtt-proxy
-- syslog
 - traffic-split
-etcd:
-  prefix: /apisix
-  host:
-  - http://127.0.0.1:2379
-  tls:
-    verify: true
-  watch_timeout: 50
-  startup_retry: 2
-  timeout: 30
+
 plugin_attr:
   inspect:
     hooks_file: /usr/local/apisix/plugin_inspect_hooks.lua

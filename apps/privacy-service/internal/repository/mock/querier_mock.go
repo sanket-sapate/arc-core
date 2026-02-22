@@ -291,6 +291,17 @@ func (r *MockQuerierMockRecorder) InsertOutboxEvent(ctx, arg interface{}) *gomoc
 	return r.mock.ctrl.RecordCall(r.mock, "InsertOutboxEvent", ctx, arg)
 }
 
+// ── Cookie Consents ──────────────────────────────────
+
+func (m *MockQuerier) InsertCookieConsent(ctx context.Context, arg db.InsertCookieConsentParams) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "InsertCookieConsent", ctx, arg)
+	return toErr(ret[0])
+}
+func (r *MockQuerierMockRecorder) InsertCookieConsent(ctx, arg interface{}) *gomock.Call {
+	return r.mock.ctrl.RecordCall(r.mock, "InsertCookieConsent", ctx, arg)
+}
+
 // ── helpers ───────────────────────────────────────────
 
 func toErr(v interface{}) error {

@@ -1,0 +1,90 @@
+basePath: /
+definitions:
+  handler.consentPayload:
+    type: object
+host: localhost:8087
+info:
+  contact: {}
+  description: Edge service for embedded consent widgets. Reads banners from Redis,
+    publishes consent events to NATS JetStream. Zero Postgres dependency.
+  title: Public API Service (SDK/Widget)
+  version: "1.0"
+paths:
+  /v1/sdk/banner/{organization_id}/{domain}:
+    get:
+      description: Returns the cached banner configuration for a given organization
+        and domain from Redis. Returns 404 on cache miss (no DB fallback).
+      operationId: get-banner
+      parameters:
+      - description: Organization UUID
+        in: path
+        name: organization_id
+        required: true
+        type: string
+      - description: Website domain (e.g. example.com)
+        in: path
+        name: domain
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Banner configuration JSON
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Banner not found in cache
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: Redis unavailable
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get cookie banner config
+      tags:
+      - SDK
+  /v1/sdk/consent:
+    post:
+      consumes:
+      - application/json
+      description: Accepts consent choices from the widget SDK and publishes them
+        to NATS JetStream for async persistence. Returns 202 immediately.
+      operationId: submit-consent
+      parameters:
+      - description: Consent payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.consentPayload'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Consent queued
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: NATS unavailable
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Submit user consent
+      tags:
+      - SDK
+swagger: "2.0"

@@ -1,0 +1,130 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Edge service for embedded consent widgets. Reads banners from Redis, publishes consent events to NATS JetStream. Zero Postgres dependency.",
+        "title": "Public API Service (SDK/Widget)",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8087",
+    "basePath": "/",
+    "paths": {
+        "/v1/sdk/banner/{organization_id}/{domain}": {
+            "get": {
+                "description": "Returns the cached banner configuration for a given organization and domain from Redis. Returns 404 on cache miss (no DB fallback).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "SDK"
+                ],
+                "summary": "Get cookie banner config",
+                "operationId": "get-banner",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Organization UUID",
+                        "name": "organization_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Website domain (e.g. example.com)",
+                        "name": "domain",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Banner configuration JSON",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Banner not found in cache",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Redis unavailable",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/sdk/consent": {
+            "post": {
+                "description": "Accepts consent choices from the widget SDK and publishes them to NATS JetStream for async persistence. Returns 202 immediately.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "SDK"
+                ],
+                "summary": "Submit user consent",
+                "operationId": "submit-consent",
+                "parameters": [
+                    {
+                        "description": "Consent payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.consentPayload"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Consent queued",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "NATS unavailable",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "handler.consentPayload": {
+            "type": "object"
+        }
+    }
+}

@@ -16,6 +16,7 @@ type Querier interface {
 	GetDefaultRole(ctx context.Context, organizationID pgtype.UUID) (Role, error)
 	GetOrganizationByName(ctx context.Context, name string) (Organization, error)
 	GetUserPermissionsInOrg(ctx context.Context, arg GetUserPermissionsInOrgParams) ([]string, error)
+	RevokeExpiredAPIKeys(ctx context.Context) (int64, error)
 	UpsertUser(ctx context.Context, arg UpsertUserParams) (User, error)
 }
 

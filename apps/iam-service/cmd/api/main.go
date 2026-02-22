@@ -25,6 +25,7 @@ import (
 	"google.golang.org/grpc"
 
 	_ "github.com/arc-self/apps/iam-service/docs"
+	"github.com/arc-self/apps/iam-service/internal/consumer"
 	"github.com/arc-self/apps/iam-service/internal/handler"
 	db "github.com/arc-self/apps/iam-service/internal/repository/db"
 	"github.com/arc-self/apps/iam-service/internal/service"
@@ -106,6 +107,15 @@ func main() {
 	// --- Repository & Service Layers ---
 	querier := db.New(pool)
 
+	// --- Cron Consumer (API key expiry, triggered by notification-service) ---
+	consumerCtx, consumerCancel := context.WithCancel(context.Background())
+	defer consumerCancel()
+
+	cronConsumer := consumer.NewCronConsumer(natsClient, querier, logger)
+	if err := cronConsumer.Start(consumerCtx); err != nil {
+		logger.Fatal("cron consumer start failed", zap.Error(err))
+	}
+
 	// --- Sync Service (Keycloak → IAM) ---
 	webhookPSK := ""
 	if v, ok := secrets["WEBHOOK_PSK"]; ok {
@@ -183,6 +193,9 @@ func main() {
 	<-quit
 
 	logger.Info("Initiating graceful shutdown")
+
+	// Stop cron consumer
+	consumerCancel()
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

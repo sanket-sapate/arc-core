@@ -20,6 +20,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 	"go.uber.org/zap"
 
+	"github.com/arc-self/apps/privacy-service/internal/consumer"
 	"github.com/arc-self/apps/privacy-service/internal/handler"
 	db "github.com/arc-self/apps/privacy-service/internal/repository/db"
 	"github.com/arc-self/apps/privacy-service/internal/service"
@@ -102,6 +103,20 @@ func main() {
 	ropaSvc := service.NewROPAService(pool, querier)
 	privacyRequestSvc := service.NewPrivacyRequestService(pool, querier)
 
+	// --- NATS Consumers ---
+	// Both consumers share a cancellable context so they shut down
+	// together with the process.
+	consumerCtx, consumerCancel := context.WithCancel(context.Background())
+	defer consumerCancel()
+
+	consentConsumer := consumer.NewConsentConsumer(natsClient, querier, logger)
+	if err := consentConsumer.Start(consumerCtx); err != nil {
+		logger.Fatal("Failed to start consent consumer", zap.Error(err))
+	}
+	logger.Info("consent consumer started",
+		zap.String("subject", "DOMAIN_EVENTS.public.consent.submitted"),
+	)
+
 	// --- HTTP Server ---
 	e := echo.New()
 	e.HideBanner = true
@@ -142,6 +157,9 @@ func main() {
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	consumerCancel() // stop consumer loop before HTTP shutdown
+
 	if err := e.Shutdown(shutdownCtx); err != nil {
 		logger.Error("Echo shutdown error", zap.Error(err))
 	}

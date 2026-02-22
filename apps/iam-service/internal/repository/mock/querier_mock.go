@@ -116,6 +116,21 @@ func (mr *MockQuerierMockRecorder) GetUserPermissionsInOrg(ctx, arg any) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserPermissionsInOrg", reflect.TypeOf((*MockQuerier)(nil).GetUserPermissionsInOrg), ctx, arg)
 }
 
+// RevokeExpiredAPIKeys mocks base method.
+func (m *MockQuerier) RevokeExpiredAPIKeys(ctx context.Context) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RevokeExpiredAPIKeys", ctx)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RevokeExpiredAPIKeys indicates an expected call of RevokeExpiredAPIKeys.
+func (mr *MockQuerierMockRecorder) RevokeExpiredAPIKeys(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevokeExpiredAPIKeys", reflect.TypeOf((*MockQuerier)(nil).RevokeExpiredAPIKeys), ctx)
+}
+
 // UpsertUser mocks base method.
 func (m *MockQuerier) UpsertUser(ctx context.Context, arg db.UpsertUserParams) (db.User, error) {
 	m.ctrl.T.Helper()

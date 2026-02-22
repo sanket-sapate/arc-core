@@ -37,3 +37,14 @@ type UserOrganizationRole struct {
 	OrganizationID pgtype.UUID
 	RoleID         pgtype.UUID
 }
+
+type ApiKey struct {
+	ID             pgtype.UUID
+	OrganizationID pgtype.UUID
+	KeyValue       string
+	Label          string
+	Scopes         []string
+	ExpiresAt      pgtype.Timestamptz
+	Revoked        bool
+	CreatedAt      pgtype.Timestamptz
+}

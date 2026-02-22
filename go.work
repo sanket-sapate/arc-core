@@ -6,7 +6,9 @@ use (
 	./apps/cdc-worker
 	./apps/discovery-service
 	./apps/iam-service
+	./apps/notification-service
 	./apps/privacy-service
+	./apps/public-api-service
 	./apps/trm-service
 	./packages/apisix-go-runner
 	./packages/go-core

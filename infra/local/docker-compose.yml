@@ -201,6 +201,46 @@ services:
       - jaeger
     logging: *default-logging
 
+  public-api-service:
+    image: golang:1.26
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: root
+      VAULT_SECRET_PATH: secret/data/arc/public-api-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4317
+    ports:
+      - "8087:8080"
+    volumes:
+      - ../../:/workspace
+    working_dir: /workspace/apps/public-api-service
+    command: ["go", "run", "./cmd/api"]
+    depends_on:
+      - redis
+      - nats
+      - vault
+      - jaeger
+    logging: *default-logging
+
+  notification-service:
+    image: golang:1.26
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: root
+      VAULT_SECRET_PATH: secret/data/arc/notification-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4317
+    ports:
+      - "8088:8080"
+    volumes:
+      - ../../:/workspace
+    working_dir: /workspace/apps/notification-service
+    command: ["go", "run", "./cmd/api"]
+    depends_on:
+      - postgres
+      - nats
+      - vault
+      - jaeger
+    logging: *default-logging
+
   apisix-go-runner:
     image: golang:1.26
     environment:

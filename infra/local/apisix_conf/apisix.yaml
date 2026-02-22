@@ -19,6 +19,11 @@ upstreams:
       "privacy-service:8080": 1
     type: roundrobin
 
+  - id: discovery-service-upstream
+    nodes:
+      "discovery-service:8080": 1
+    type: roundrobin
+
 routes:
   # ─── ABC Service Routes (method-scoped for fine-grained authz) ───
   # Fixes FLAW-1.3: the original single route used "item:read" for ALL
@@ -37,7 +42,6 @@ routes:
         allow_origins: "http://localhost:5173"
         allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
         allow_headers: "Authorization,X-Organization-Id,Content-Type"
-        expose_headers: "*"
         allow_credential: true
       proxy-rewrite:
         headers:
@@ -64,7 +68,6 @@ routes:
         allow_origins: "http://localhost:5173"
         allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
         allow_headers: "Authorization,X-Organization-Id,Content-Type"
-        expose_headers: "*"
         allow_credential: true
       proxy-rewrite:
         headers:
@@ -91,7 +94,6 @@ routes:
         allow_origins: "http://localhost:5173"
         allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
         allow_headers: "Authorization,X-Organization-Id,Content-Type"
-        expose_headers: "*"
         allow_credential: true
       proxy-rewrite:
         headers:
@@ -118,7 +120,6 @@ routes:
         allow_origins: "http://localhost:5173"
         allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
         allow_headers: "Authorization,X-Organization-Id,Content-Type"
-        expose_headers: "*"
         allow_credential: true
       proxy-rewrite:
         headers:
@@ -145,7 +146,6 @@ routes:
         allow_origins: "http://localhost:5173"
         allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
         allow_headers: "Authorization,X-Organization-Id,Content-Type"
-        expose_headers: "*"
         allow_credential: true
       proxy-rewrite:
         headers:
@@ -196,7 +196,6 @@ routes:
         allow_origins: "http://localhost:5173"
         allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
         allow_headers: "Authorization,X-Organization-Id,Content-Type"
-        expose_headers: "*"
         allow_credential: true
       proxy-rewrite:
         regex_uri: ["^/api/privacy/(.*)", "/$1"]
@@ -224,7 +223,6 @@ routes:
         allow_origins: "http://localhost:5173"
         allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
         allow_headers: "Authorization,X-Organization-Id,Content-Type"
-        expose_headers: "*"
         allow_credential: true
       proxy-rewrite:
         regex_uri: ["^/api/privacy/(.*)", "/$1"]
@@ -252,7 +250,6 @@ routes:
         allow_origins: "http://localhost:5173"
         allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
         allow_headers: "Authorization,X-Organization-Id,Content-Type"
-        expose_headers: "*"
         allow_credential: true
       proxy-rewrite:
         regex_uri: ["^/api/privacy/(.*)", "/$1"]
@@ -265,5 +262,75 @@ routes:
         conf:
           - name: "authz"
             value: '{"permission_slug": "privacy:delete"}'
+
+  # ─── Discovery Service Routes (Data Intelligence) ──────────────────
+  - id: discovery-domain-read
+    uri: /api/discovery/*
+    methods: ["GET", "OPTIONS"]
+    upstream_id: discovery-service-upstream
+    plugins:
+      limit-count:
+        count: 100
+        time_window: 60
+        rejected_code: 429
+        key: "http_x_organization_id"
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/discovery/(.*)", "/$1"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+
+  - id: discovery-domain-write
+    uri: /api/discovery/*
+    methods: ["POST", "PATCH", "PUT"]
+    upstream_id: discovery-service-upstream
+    plugins:
+      limit-count:
+        count: 100
+        time_window: 60
+        rejected_code: 429
+        key: "http_x_organization_id"
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/discovery/(.*)", "/$1"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+
+  - id: discovery-domain-delete
+    uri: /api/discovery/*
+    methods: ["DELETE"]
+    upstream_id: discovery-service-upstream
+    plugins:
+      limit-count:
+        count: 100
+        time_window: 60
+        rejected_code: 429
+        key: "http_x_organization_id"
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/discovery/(.*)", "/$1"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
 
 #END
