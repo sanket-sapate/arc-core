@@ -19,14 +19,14 @@ RETURNING id, organization_id, type, status, requester_email, requester_name, de
 `
 
 type CreatePrivacyRequestParams struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
-	Type           string
-	Status         pgtype.Text
-	RequesterEmail pgtype.Text
-	RequesterName  pgtype.Text
-	Description    pgtype.Text
-	DueDate        pgtype.Timestamptz
+	ID             pgtype.UUID        `json:"id"`
+	OrganizationID pgtype.UUID        `json:"organization_id"`
+	Type           string             `json:"type"`
+	Status         pgtype.Text        `json:"status"`
+	RequesterEmail pgtype.Text        `json:"requester_email"`
+	RequesterName  pgtype.Text        `json:"requester_name"`
+	Description    pgtype.Text        `json:"description"`
+	DueDate        pgtype.Timestamptz `json:"due_date"`
 }
 
 func (q *Queries) CreatePrivacyRequest(ctx context.Context, arg CreatePrivacyRequestParams) (PrivacyRequest, error) {
@@ -63,8 +63,8 @@ WHERE id = $1 AND organization_id = $2
 `
 
 type GetPrivacyRequestParams struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
+	ID             pgtype.UUID `json:"id"`
+	OrganizationID pgtype.UUID `json:"organization_id"`
 }
 
 func (q *Queries) GetPrivacyRequest(ctx context.Context, arg GetPrivacyRequestParams) (PrivacyRequest, error) {
@@ -124,6 +124,44 @@ func (q *Queries) ListPrivacyRequests(ctx context.Context, organizationID pgtype
 	return items, nil
 }
 
+const listUserPrivacyRequests = `-- name: ListUserPrivacyRequests :many
+SELECT id, organization_id, type, status, requester_email, requester_name, description, resolution, created_at, updated_at, due_date FROM privacy_requests
+WHERE requester_email = $1
+ORDER BY created_at DESC
+`
+
+func (q *Queries) ListUserPrivacyRequests(ctx context.Context, requesterEmail pgtype.Text) ([]PrivacyRequest, error) {
+	rows, err := q.db.Query(ctx, listUserPrivacyRequests, requesterEmail)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PrivacyRequest
+	for rows.Next() {
+		var i PrivacyRequest
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrganizationID,
+			&i.Type,
+			&i.Status,
+			&i.RequesterEmail,
+			&i.RequesterName,
+			&i.Description,
+			&i.Resolution,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DueDate,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updatePrivacyRequest = `-- name: UpdatePrivacyRequest :one
 UPDATE privacy_requests
 SET status = $3, resolution = $4, due_date = $5, updated_at = NOW()
@@ -132,11 +170,11 @@ RETURNING id, organization_id, type, status, requester_email, requester_name, de
 `
 
 type UpdatePrivacyRequestParams struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
-	Status         pgtype.Text
-	Resolution     pgtype.Text
-	DueDate        pgtype.Timestamptz
+	ID             pgtype.UUID        `json:"id"`
+	OrganizationID pgtype.UUID        `json:"organization_id"`
+	Status         pgtype.Text        `json:"status"`
+	Resolution     pgtype.Text        `json:"resolution"`
+	DueDate        pgtype.Timestamptz `json:"due_date"`
 }
 
 func (q *Queries) UpdatePrivacyRequest(ctx context.Context, arg UpdatePrivacyRequestParams) (PrivacyRequest, error) {

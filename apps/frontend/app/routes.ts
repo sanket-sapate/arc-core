@@ -42,4 +42,15 @@ export default [
     // ── Non-layout routes (public) ─────────────────────────────────────────
     route("auth/callback", "routes/auth.callback.tsx"),
     route("ingress-test", "routes/ingress-test.tsx"),
+
+    // ── User Portal Routes ───────────────────────────────────────────────
+    route("portal/login", "routes/portal.login.tsx"),
+    route("portal/verify", "routes/portal.verify.tsx"),
+    route("portal/dashboard", "routes/portal.dashboard.tsx"),
+    route("portal/requests", "routes/portal.requests.tsx"),
+    route("portal/grievances", "routes/portal.grievances.tsx"),
+    route("portal/nominees", "routes/portal.nominee.tsx"),
+
+    // ── Catch-all 404 Boundary ─────────────────────────────────────────────
+    route("*", "routes/not-found.tsx"),
 ] satisfies RouteConfig;

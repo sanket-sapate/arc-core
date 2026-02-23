@@ -20,13 +20,13 @@ INSERT INTO breaches (
 `
 
 type CreateBreachParams struct {
-	OrganizationID  pgtype.UUID
-	Title           string
-	Severity        pgtype.Text
-	Status          pgtype.Text
-	IncidentDate    pgtype.Timestamptz
-	Description     pgtype.Text
-	RemediationPlan pgtype.Text
+	OrganizationID  pgtype.UUID        `json:"organization_id"`
+	Title           string             `json:"title"`
+	Severity        pgtype.Text        `json:"severity"`
+	Status          pgtype.Text        `json:"status"`
+	IncidentDate    pgtype.Timestamptz `json:"incident_date"`
+	Description     pgtype.Text        `json:"description"`
+	RemediationPlan pgtype.Text        `json:"remediation_plan"`
 }
 
 func (q *Queries) CreateBreach(ctx context.Context, arg CreateBreachParams) (Breach, error) {
@@ -61,8 +61,8 @@ WHERE id = $1 AND organization_id = $2
 `
 
 type DeleteBreachParams struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
+	ID             pgtype.UUID `json:"id"`
+	OrganizationID pgtype.UUID `json:"organization_id"`
 }
 
 func (q *Queries) DeleteBreach(ctx context.Context, arg DeleteBreachParams) error {
@@ -76,8 +76,8 @@ WHERE id = $1 AND organization_id = $2
 `
 
 type GetBreachByIDParams struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
+	ID             pgtype.UUID `json:"id"`
+	OrganizationID pgtype.UUID `json:"organization_id"`
 }
 
 func (q *Queries) GetBreachByID(ctx context.Context, arg GetBreachByIDParams) (Breach, error) {
@@ -150,14 +150,14 @@ RETURNING id, organization_id, title, severity, status, incident_date, descripti
 `
 
 type UpdateBreachParams struct {
-	ID              pgtype.UUID
-	OrganizationID  pgtype.UUID
-	Title           string
-	Severity        pgtype.Text
-	Status          pgtype.Text
-	IncidentDate    pgtype.Timestamptz
-	Description     pgtype.Text
-	RemediationPlan pgtype.Text
+	ID              pgtype.UUID        `json:"id"`
+	OrganizationID  pgtype.UUID        `json:"organization_id"`
+	Title           string             `json:"title"`
+	Severity        pgtype.Text        `json:"severity"`
+	Status          pgtype.Text        `json:"status"`
+	IncidentDate    pgtype.Timestamptz `json:"incident_date"`
+	Description     pgtype.Text        `json:"description"`
+	RemediationPlan pgtype.Text        `json:"remediation_plan"`
 }
 
 func (q *Queries) UpdateBreach(ctx context.Context, arg UpdateBreachParams) (Breach, error) {

@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/otel/trace"
 
 	db "github.com/arc-self/apps/privacy-service/internal/repository/db"
@@ -71,28 +72,29 @@ type CookieBannerService interface {
 }
 
 type CreateCookieBannerInput struct {
-	Domain             string
-	Name               string
-	Title              string
-	Message            string
-	AcceptButtonText   string
-	RejectButtonText   string
-	SettingsButtonText string
-	Theme              string
-	Position           string
-	Active             bool
-	Config             json.RawMessage
+	Domain             string          `json:"domain"`
+	Name               string          `json:"name"`
+	Title              string          `json:"title"`
+	Message            string          `json:"message"`
+	AcceptButtonText   string          `json:"accept_button_text"`
+	RejectButtonText   string          `json:"reject_button_text"`
+	SettingsButtonText string          `json:"settings_button_text"`
+	Theme              string          `json:"theme"`
+	Position           string          `json:"position"`
+	Active             bool            `json:"active"`
+	Config             json.RawMessage `json:"config"`
 }
 
 type UpdateCookieBannerInput = CreateCookieBannerInput
 
 type cookieBannerService struct {
 	pool    *pgxpool.Pool
+	rdb     *redis.Client
 	querier db.Querier
 }
 
-func NewCookieBannerService(pool *pgxpool.Pool, q db.Querier) CookieBannerService {
-	return &cookieBannerService{pool: pool, querier: q}
+func NewCookieBannerService(pool *pgxpool.Pool, rdb *redis.Client, q db.Querier) CookieBannerService {
+	return &cookieBannerService{pool: pool, rdb: rdb, querier: q}
 }
 
 func (s *cookieBannerService) Create(ctx context.Context, p CreateCookieBannerInput) (db.CookieBanner, error) {
@@ -140,7 +142,20 @@ func (s *cookieBannerService) Create(ctx context.Context, p CreateCookieBannerIn
 	}); err != nil {
 		return db.CookieBanner{}, fmt.Errorf("outbox insert: %w", err)
 	}
-	return banner, tx.Commit(ctx)
+
+	if err := tx.Commit(ctx); err != nil {
+		return banner, err
+	}
+
+	// Push to Redis (Write-Through Cache)
+	key := fmt.Sprintf("widget:banner:%s:%s", orgID.String(), p.Domain)
+	bannerJSON, _ := json.Marshal(banner)
+	if err := s.rdb.Set(ctx, key, bannerJSON, 0).Err(); err != nil {
+		// Log error but don't fail the request since source of truth succeeded
+		fmt.Printf("failed to push banner config to Redis: %v\n", err)
+	}
+
+	return banner, nil
 }
 
 func (s *cookieBannerService) Get(ctx context.Context, id string) (db.CookieBanner, error) {
@@ -180,7 +195,7 @@ func (s *cookieBannerService) Update(ctx context.Context, id string, p UpdateCoo
 	if cfg == nil {
 		cfg = json.RawMessage("{}")
 	}
-	return s.querier.UpdateCookieBanner(ctx, db.UpdateCookieBannerParams{
+	banner, err := s.querier.UpdateCookieBanner(ctx, db.UpdateCookieBannerParams{
 		ID: bannerID, OrganizationID: orgID,
 		Name: pgtype.Text{String: p.Name, Valid: p.Name != ""},
 		Title: pgtype.Text{String: p.Title, Valid: p.Title != ""},
@@ -193,6 +208,15 @@ func (s *cookieBannerService) Update(ctx context.Context, id string, p UpdateCoo
 		Active: pgtype.Bool{Bool: p.Active, Valid: true},
 		Config: cfg,
 	})
+	if err == nil && p.Domain != "" {
+		// Update Redis cache if successful
+		key := fmt.Sprintf("widget:banner:%s:%s", orgID.String(), p.Domain)
+		bannerJSON, _ := json.Marshal(banner)
+		if rdbErr := s.rdb.Set(ctx, key, bannerJSON, 0).Err(); rdbErr != nil {
+			fmt.Printf("failed to update banner config in Redis: %v\n", rdbErr)
+		}
+	}
+	return banner, err
 }
 
 func (s *cookieBannerService) Delete(ctx context.Context, id string) error {
@@ -217,16 +241,16 @@ type PrivacyRequestService interface {
 }
 
 type CreatePrivacyRequestInput struct {
-	Type           string
-	RequesterEmail string
-	RequesterName  string
-	Description    string
+	Type           string `json:"type"`
+	RequesterEmail string `json:"requester_email"`
+	RequesterName  string `json:"requester_name"`
+	Description    string `json:"description"`
 }
 
 type UpdatePrivacyRequestInput struct {
-	Status     string
-	Resolution string
-	DueDate    *time.Time
+	Status     string     `json:"status"`
+	Resolution string     `json:"resolution"`
+	DueDate    *time.Time `json:"due_date"`
 }
 
 type privacyRequestService struct {
@@ -253,11 +277,11 @@ func (s *privacyRequestService) Create(ctx context.Context, p CreatePrivacyReque
 	defer tx.Rollback(ctx)
 	qtx := db.New(tx)
 
-	dueDate := pgtype.Timestamptz{Time: time.Now().AddDate(0, 0, 30), Valid: true}
+	dueDate := pgtype.Timestamptz{Time: time.Now().AddDate(0, 0, 7), Valid: true}
 
 	req, err := qtx.CreatePrivacyRequest(ctx, db.CreatePrivacyRequestParams{
 		ID: newUUID(), OrganizationID: orgID, Type: p.Type,
-		Status:         pgtype.Text{String: "pending", Valid: true},
+		Status:         pgtype.Text{String: "acknowledged", Valid: true},
 		RequesterEmail: pgtype.Text{String: p.RequesterEmail, Valid: p.RequesterEmail != ""},
 		RequesterName:  pgtype.Text{String: p.RequesterName, Valid: p.RequesterName != ""},
 		Description:    pgtype.Text{String: p.Description, Valid: p.Description != ""},
@@ -344,11 +368,11 @@ type DPIAService interface {
 }
 
 type CreateDPIAInput struct {
-	Name      string
-	VendorID  string
-	Status    string
-	RiskLevel string
-	FormData  json.RawMessage
+	Name      string          `json:"name"`
+	VendorID  string          `json:"vendor_id"`
+	Status    string          `json:"status"`
+	RiskLevel string          `json:"risk_level"`
+	FormData  json.RawMessage `json:"form_data"`
 }
 
 type UpdateDPIAInput = CreateDPIAInput
@@ -483,11 +507,11 @@ type ROPAService interface {
 }
 
 type CreateROPAInput struct {
-	Name               string
-	ProcessingActivity string
-	LegalBasis         string
-	DataCategories     []string
-	Status             string
+	Name               string   `json:"name"`
+	ProcessingActivity string   `json:"processing_activity"`
+	LegalBasis         string   `json:"legal_basis"`
+	DataCategories     []string `json:"data_categories"`
+	Status             string   `json:"status"`
 }
 
 type UpdateROPAInput = CreateROPAInput
@@ -571,17 +595,18 @@ func (s *ropaService) Update(ctx context.Context, id string, p UpdateROPAInput) 
 // ── Purpose Service ───────────────────────────────────────────────────────
 
 type PurposeService interface {
-	Create(ctx context.Context, p CreatePurposeInput) (db.Purpose, error)
-	Get(ctx context.Context, id string) (db.Purpose, error)
-	List(ctx context.Context) ([]db.Purpose, error)
-	Update(ctx context.Context, id string, p UpdatePurposeInput) (db.Purpose, error)
+	Create(ctx context.Context, p CreatePurposeInput) (db.CreatePurposeRow, error)
+	Get(ctx context.Context, id string) (db.GetPurposeRow, error)
+	List(ctx context.Context) ([]db.ListPurposesRow, error)
+	Update(ctx context.Context, id string, p UpdatePurposeInput) (db.UpdatePurposeRow, error)
 }
 
 type CreatePurposeInput struct {
-	Name        string
-	Description string
-	LegalBasis  string
-	Active      bool
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	LegalBasis  string   `json:"legal_basis"`
+	Active      bool     `json:"active"`
+	DataObjects []string `json:"data_objects"` // UUIDs as strings
 }
 
 type UpdatePurposeInput = CreatePurposeInput
@@ -595,39 +620,44 @@ func NewPurposeService(pool *pgxpool.Pool, q db.Querier) PurposeService {
 	return &purposeService{pool: pool, querier: q}
 }
 
-func (s *purposeService) Create(ctx context.Context, p CreatePurposeInput) (db.Purpose, error) {
+func (s *purposeService) Create(ctx context.Context, p CreatePurposeInput) (db.CreatePurposeRow, error) {
 	if p.Name == "" {
-		return db.Purpose{}, fmt.Errorf("%w: name is required", ErrInvalidInput)
+		return db.CreatePurposeRow{}, fmt.Errorf("%w: name is required", ErrInvalidInput)
 	}
 	orgID, err := mustGetOrgID(ctx)
 	if err != nil {
-		return db.Purpose{}, err
+		return db.CreatePurposeRow{}, err
+	}
+	dataObjectUUIDs, err := parseStringUUIDs(p.DataObjects)
+	if err != nil {
+		return db.CreatePurposeRow{}, err
 	}
 	return s.querier.CreatePurpose(ctx, db.CreatePurposeParams{
 		ID: newUUID(), OrganizationID: orgID, Name: p.Name,
 		Description: pgtype.Text{String: p.Description, Valid: p.Description != ""},
 		LegalBasis:  pgtype.Text{String: p.LegalBasis, Valid: p.LegalBasis != ""},
 		Active:      pgtype.Bool{Bool: p.Active, Valid: true},
+		DataObjects: dataObjectUUIDs,
 	})
 }
 
-func (s *purposeService) Get(ctx context.Context, id string) (db.Purpose, error) {
+func (s *purposeService) Get(ctx context.Context, id string) (db.GetPurposeRow, error) {
 	orgID, err := mustGetOrgID(ctx)
 	if err != nil {
-		return db.Purpose{}, err
+		return db.GetPurposeRow{}, err
 	}
 	purposeID, err := parseUUID(id)
 	if err != nil {
-		return db.Purpose{}, fmt.Errorf("%w: invalid id", ErrInvalidInput)
+		return db.GetPurposeRow{}, fmt.Errorf("%w: invalid id", ErrInvalidInput)
 	}
 	p, err := s.querier.GetPurpose(ctx, db.GetPurposeParams{ID: purposeID, OrganizationID: orgID})
 	if err != nil {
-		return db.Purpose{}, fmt.Errorf("%w: purpose", ErrNotFound)
+		return db.GetPurposeRow{}, fmt.Errorf("%w: purpose", ErrNotFound)
 	}
 	return p, nil
 }
 
-func (s *purposeService) List(ctx context.Context) ([]db.Purpose, error) {
+func (s *purposeService) List(ctx context.Context) ([]db.ListPurposesRow, error) {
 	orgID, err := mustGetOrgID(ctx)
 	if err != nil {
 		return nil, err
@@ -635,20 +665,25 @@ func (s *purposeService) List(ctx context.Context) ([]db.Purpose, error) {
 	return s.querier.ListPurposes(ctx, orgID)
 }
 
-func (s *purposeService) Update(ctx context.Context, id string, p UpdatePurposeInput) (db.Purpose, error) {
+func (s *purposeService) Update(ctx context.Context, id string, p UpdatePurposeInput) (db.UpdatePurposeRow, error) {
 	orgID, err := mustGetOrgID(ctx)
 	if err != nil {
-		return db.Purpose{}, err
+		return db.UpdatePurposeRow{}, err
 	}
 	purposeID, err := parseUUID(id)
 	if err != nil {
-		return db.Purpose{}, fmt.Errorf("%w: invalid id", ErrInvalidInput)
+		return db.UpdatePurposeRow{}, fmt.Errorf("%w: invalid id", ErrInvalidInput)
+	}
+	dataObjectUUIDs, err := parseStringUUIDs(p.DataObjects)
+	if err != nil {
+		return db.UpdatePurposeRow{}, err
 	}
 	return s.querier.UpdatePurpose(ctx, db.UpdatePurposeParams{
 		ID: purposeID, OrganizationID: orgID, Name: p.Name,
 		Description: pgtype.Text{String: p.Description, Valid: p.Description != ""},
 		LegalBasis:  pgtype.Text{String: p.LegalBasis, Valid: p.LegalBasis != ""},
 		Active:      pgtype.Bool{Bool: p.Active, Valid: true},
+		DataObjects: dataObjectUUIDs,
 	})
 }
 
@@ -662,11 +697,11 @@ type ConsentFormService interface {
 }
 
 type CreateConsentFormInput struct {
-	Name        string
-	Description string
-	Active      bool
-	FormConfig  json.RawMessage
-	Purposes    []string // UUIDs as strings
+	Name        string          `json:"name"`
+	Description string          `json:"description"`
+	Active      bool            `json:"active"`
+	FormConfig  json.RawMessage `json:"form_config"`
+	Purposes    []string        `json:"purposes"` // UUIDs as strings
 }
 
 type UpdateConsentFormInput = CreateConsentFormInput
@@ -767,6 +802,18 @@ func parsePurposeIDs(ids []string) ([]pgtype.UUID, error) {
 	return out, nil
 }
 
+func parseStringUUIDs(ids []string) ([]pgtype.UUID, error) {
+	out := make([]pgtype.UUID, 0, len(ids))
+	for _, s := range ids {
+		u, err := parseUUID(s)
+		if err != nil {
+			return nil, fmt.Errorf("%w: invalid id %q", ErrInvalidInput, s)
+		}
+		out = append(out, u)
+	}
+	return out, nil
+}
+
 // ── Grievance Service ─────────────────────────────────────────────────────
 
 type GrievanceService interface {
@@ -777,16 +824,16 @@ type GrievanceService interface {
 }
 
 type CreateGrievanceInput struct {
-	ReporterEmail string
-	IssueType     string
-	Description   string
-	Priority      string
+	ReporterEmail string `json:"reporter_email"`
+	IssueType     string `json:"issue_type"`
+	Description   string `json:"description"`
+	Priority      string `json:"priority"`
 }
 
 type UpdateGrievanceInput struct {
-	Status     string
-	Resolution string
-	Priority   string
+	Status     string `json:"status"`
+	Resolution string `json:"resolution"`
+	Priority   string `json:"priority"`
 }
 
 type grievanceService struct {
@@ -811,14 +858,17 @@ func (s *grievanceService) Create(ctx context.Context, p CreateGrievanceInput) (
 		priority = "medium"
 	}
 
+	dueDate := pgtype.Timestamptz{Time: time.Now().AddDate(0, 0, 30), Valid: true}
+
 	return s.querier.CreateGrievance(ctx, db.CreateGrievanceParams{
 		ID:             newUUID(),
 		OrganizationID: orgID,
 		ReporterEmail:  pgtype.Text{String: p.ReporterEmail, Valid: p.ReporterEmail != ""},
 		IssueType:      p.IssueType,
 		Description:    pgtype.Text{String: p.Description, Valid: p.Description != ""},
-		Status:         pgtype.Text{String: "open", Valid: true},
+		Status:         pgtype.Text{String: "acknowledged", Valid: true},
 		Priority:       pgtype.Text{String: priority, Valid: true},
+		DueDate:        dueDate,
 	})
 }
 

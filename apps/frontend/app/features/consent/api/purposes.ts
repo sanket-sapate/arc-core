@@ -8,6 +8,7 @@ const mapPurpose = (p: any): Purpose => ({
     description: p.Description || p.description || "",
     legal_basis: p.LegalBasis || p.legal_basis || "consent",
     active: p.Active ?? p.active ?? true,
+    data_objects: p.DataObjects || p.data_objects || [],
     created_at: p.CreatedAt || p.created_at,
     updated_at: p.UpdatedAt || p.updated_at,
 });
@@ -23,6 +24,7 @@ export const createPurpose = async (purpose: Purpose): Promise<Purpose> => {
         description: purpose.description,
         legal_basis: purpose.legal_basis,
         active: purpose.active,
+        data_objects: purpose.data_objects,
     };
     const { data } = await api.post('/api/privacy/api/v1/purposes', payload);
     return mapPurpose(data);
@@ -34,6 +36,7 @@ export const updatePurpose = async ({ id, purpose }: { id: string; purpose: Purp
         description: purpose.description,
         legal_basis: purpose.legal_basis,
         active: purpose.active,
+        data_objects: purpose.data_objects,
     };
     const { data } = await api.put(`/api/privacy/api/v1/purposes/${id}`, payload);
     return mapPurpose(data);

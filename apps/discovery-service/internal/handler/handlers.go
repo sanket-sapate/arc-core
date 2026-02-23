@@ -67,11 +67,17 @@ func createDictionaryItemHandler(svc service.DictionaryService, logger *zap.Logg
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "name is required"})
 		}
 
+		// Provide a dummy pattern if none is provided to satisfy scanner requirements
+		pattern := req.Pattern
+		if pattern == "" {
+			pattern = "(?i).*"
+		}
+
 		item, err := svc.CreateDictionaryItem(c.Request().Context(), service.CreateDictionaryItemInput{
 			Name:        req.Name,
 			Category:    req.Category,
 			Sensitivity: req.Sensitivity,
-			Pattern:     req.Pattern,
+			Pattern:     pattern,
 		})
 		if err != nil {
 			logger.Error("CreateDictionaryItem failed", zap.Error(err))

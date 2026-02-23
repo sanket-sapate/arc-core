@@ -158,10 +158,10 @@ export default function DataDictionaryPage() {
                                         <TableCell>
                                             <Badge
                                                 variant="outline"
-                                                className={sensitivityColor[item.sensitivity]}
+                                                className={sensitivityColor[item.sensitivity || "low"]}
                                             >
-                                                {item.sensitivity.charAt(0).toUpperCase() +
-                                                    item.sensitivity.slice(1)}
+                                                {(item.sensitivity || "low").charAt(0).toUpperCase() +
+                                                    (item.sensitivity || "low").slice(1)}
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-center">

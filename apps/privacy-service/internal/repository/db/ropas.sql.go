@@ -18,13 +18,13 @@ RETURNING id, organization_id, name, processing_activity, legal_basis, data_cate
 `
 
 type CreateROPAParams struct {
-	ID                 pgtype.UUID
-	OrganizationID     pgtype.UUID
-	Name               string
-	ProcessingActivity pgtype.Text
-	LegalBasis         pgtype.Text
-	DataCategories     []string
-	Status             pgtype.Text
+	ID                 pgtype.UUID `json:"id"`
+	OrganizationID     pgtype.UUID `json:"organization_id"`
+	Name               string      `json:"name"`
+	ProcessingActivity pgtype.Text `json:"processing_activity"`
+	LegalBasis         pgtype.Text `json:"legal_basis"`
+	DataCategories     []string    `json:"data_categories"`
+	Status             pgtype.Text `json:"status"`
 }
 
 func (q *Queries) CreateROPA(ctx context.Context, arg CreateROPAParams) (Ropa, error) {
@@ -58,8 +58,8 @@ WHERE id = $1 AND organization_id = $2
 `
 
 type GetROPAParams struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
+	ID             pgtype.UUID `json:"id"`
+	OrganizationID pgtype.UUID `json:"organization_id"`
 }
 
 func (q *Queries) GetROPA(ctx context.Context, arg GetROPAParams) (Ropa, error) {
@@ -124,13 +124,13 @@ RETURNING id, organization_id, name, processing_activity, legal_basis, data_cate
 `
 
 type UpdateROPAParams struct {
-	ID                 pgtype.UUID
-	OrganizationID     pgtype.UUID
-	Name               string
-	ProcessingActivity pgtype.Text
-	LegalBasis         pgtype.Text
-	DataCategories     []string
-	Status             pgtype.Text
+	ID                 pgtype.UUID `json:"id"`
+	OrganizationID     pgtype.UUID `json:"organization_id"`
+	Name               string      `json:"name"`
+	ProcessingActivity pgtype.Text `json:"processing_activity"`
+	LegalBasis         pgtype.Text `json:"legal_basis"`
+	DataCategories     []string    `json:"data_categories"`
+	Status             pgtype.Text `json:"status"`
 }
 
 func (q *Queries) UpdateROPA(ctx context.Context, arg UpdateROPAParams) (Ropa, error) {

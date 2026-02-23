@@ -21,13 +21,13 @@ RETURNING id, tenant_id, purpose_id, name, script_domain, rule_type, active, cre
 `
 
 type CreateScriptRuleParams struct {
-	ID           pgtype.UUID
-	TenantID     pgtype.UUID
-	PurposeID    pgtype.UUID
-	Name         string
-	ScriptDomain string
-	RuleType     string
-	Active       bool
+	ID           pgtype.UUID `json:"id"`
+	TenantID     pgtype.UUID `json:"tenant_id"`
+	PurposeID    pgtype.UUID `json:"purpose_id"`
+	Name         string      `json:"name"`
+	ScriptDomain string      `json:"script_domain"`
+	RuleType     string      `json:"rule_type"`
+	Active       bool        `json:"active"`
 }
 
 func (q *Queries) CreateScriptRule(ctx context.Context, arg CreateScriptRuleParams) (ScriptRule, error) {
@@ -61,8 +61,8 @@ WHERE id = $1 AND tenant_id = $2
 `
 
 type DeleteScriptRuleParams struct {
-	ID       pgtype.UUID
-	TenantID pgtype.UUID
+	ID       pgtype.UUID `json:"id"`
+	TenantID pgtype.UUID `json:"tenant_id"`
 }
 
 func (q *Queries) DeleteScriptRule(ctx context.Context, arg DeleteScriptRuleParams) error {
@@ -76,8 +76,8 @@ WHERE id = $1 AND tenant_id = $2
 `
 
 type GetScriptRuleParams struct {
-	ID       pgtype.UUID
-	TenantID pgtype.UUID
+	ID       pgtype.UUID `json:"id"`
+	TenantID pgtype.UUID `json:"tenant_id"`
 }
 
 func (q *Queries) GetScriptRule(ctx context.Context, arg GetScriptRuleParams) (ScriptRule, error) {
@@ -147,13 +147,13 @@ RETURNING id, tenant_id, purpose_id, name, script_domain, rule_type, active, cre
 `
 
 type UpdateScriptRuleParams struct {
-	PurposeID    pgtype.UUID
-	Name         string
-	ScriptDomain string
-	RuleType     string
-	Active       bool
-	ID           pgtype.UUID
-	TenantID     pgtype.UUID
+	PurposeID    pgtype.UUID `json:"purpose_id"`
+	Name         string      `json:"name"`
+	ScriptDomain string      `json:"script_domain"`
+	RuleType     string      `json:"rule_type"`
+	Active       bool        `json:"active"`
+	ID           pgtype.UUID `json:"id"`
+	TenantID     pgtype.UUID `json:"tenant_id"`
 }
 
 func (q *Queries) UpdateScriptRule(ctx context.Context, arg UpdateScriptRuleParams) (ScriptRule, error) {

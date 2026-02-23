@@ -18,13 +18,13 @@ RETURNING id, organization_id, name, description, active, form_config, purposes,
 `
 
 type CreateConsentFormParams struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
-	Name           string
-	Description    pgtype.Text
-	Active         pgtype.Bool
-	FormConfig     []byte
-	Purposes       []pgtype.UUID
+	ID             pgtype.UUID   `json:"id"`
+	OrganizationID pgtype.UUID   `json:"organization_id"`
+	Name           string        `json:"name"`
+	Description    pgtype.Text   `json:"description"`
+	Active         pgtype.Bool   `json:"active"`
+	FormConfig     []byte        `json:"form_config"`
+	Purposes       []pgtype.UUID `json:"purposes"`
 }
 
 func (q *Queries) CreateConsentForm(ctx context.Context, arg CreateConsentFormParams) (ConsentForm, error) {
@@ -58,8 +58,8 @@ WHERE id = $1 AND organization_id = $2
 `
 
 type GetConsentFormParams struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
+	ID             pgtype.UUID `json:"id"`
+	OrganizationID pgtype.UUID `json:"organization_id"`
 }
 
 func (q *Queries) GetConsentForm(ctx context.Context, arg GetConsentFormParams) (ConsentForm, error) {
@@ -123,13 +123,13 @@ RETURNING id, organization_id, name, description, active, form_config, purposes,
 `
 
 type UpdateConsentFormParams struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
-	Name           string
-	Description    pgtype.Text
-	Active         pgtype.Bool
-	FormConfig     []byte
-	Purposes       []pgtype.UUID
+	ID             pgtype.UUID   `json:"id"`
+	OrganizationID pgtype.UUID   `json:"organization_id"`
+	Name           string        `json:"name"`
+	Description    pgtype.Text   `json:"description"`
+	Active         pgtype.Bool   `json:"active"`
+	FormConfig     []byte        `json:"form_config"`
+	Purposes       []pgtype.UUID `json:"purposes"`
 }
 
 func (q *Queries) UpdateConsentForm(ctx context.Context, arg UpdateConsentFormParams) (ConsentForm, error) {

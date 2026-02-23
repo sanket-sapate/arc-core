@@ -120,6 +120,7 @@ func (c *ConsentConsumer) processMessage(ctx context.Context, msg *nats.Msg) {
 // UUID fields are plain strings — same rationale as audit-service OutboxEvent.
 type consentEvent struct {
 	OrganizationID string          `json:"organization_id"`
+	Domain         string          `json:"domain"`
 	AnonymousID    string          `json:"anonymous_id"`
 	Consents       json.RawMessage `json:"consents"`
 	IPAddress      string          `json:"ip_address"`
@@ -139,6 +140,9 @@ func (c *ConsentConsumer) processEvent(ctx context.Context, data []byte) error {
 	if event.OrganizationID == "" {
 		return &poisonPillError{msg: "organization_id is empty"}
 	}
+	if event.Domain == "" {
+		return &poisonPillError{msg: "domain is empty"}
+	}
 
 	// ── 2. Parse UUID ─────────────────────────────────────────────────────
 	orgID, err := parseStringUUID(event.OrganizationID)
@@ -157,15 +161,16 @@ func (c *ConsentConsumer) processEvent(ctx context.Context, data []byte) error {
 		consentsBytes = []byte("{}")
 	}
 
-	if err := c.querier.InsertCookieConsent(ctx, db.InsertCookieConsentParams{
+	if _, err := c.querier.RecordConsentReceipt(ctx, db.RecordConsentReceiptParams{
 		OrganizationID: orgID,
-		AnonymousID:    pgtype.Text{String: event.AnonymousID, Valid: event.AnonymousID != ""},
+		Domain:         event.Domain,
+		AnonymousID:    event.AnonymousID,
 		Consents:       consentsBytes,
 		IpAddress:      pgtype.Text{String: event.IPAddress, Valid: event.IPAddress != ""},
 		UserAgent:      pgtype.Text{String: event.UserAgent, Valid: event.UserAgent != ""},
 	}); err != nil {
 		span.RecordError(err)
-		return fmt.Errorf("InsertCookieConsent: %w", err)
+		return fmt.Errorf("RecordConsentReceipt: %w", err)
 	}
 
 	c.logger.Info("consent persisted",

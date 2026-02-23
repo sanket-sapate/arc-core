@@ -18,3 +18,8 @@ UPDATE privacy_requests
 SET status = $3, resolution = $4, due_date = $5, updated_at = NOW()
 WHERE id = $1 AND organization_id = $2
 RETURNING *;
+
+-- name: ListUserPrivacyRequests :many
+SELECT * FROM privacy_requests
+WHERE requester_email = $1
+ORDER BY created_at DESC;

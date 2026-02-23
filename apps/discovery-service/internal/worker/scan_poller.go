@@ -115,15 +115,15 @@ func (p *ScanPoller) processJob(ctx context.Context, job db.ScanJob) error {
 
 	p.logger.Debug("scan job status",
 		zap.String("job_id", job.ID.String()),
-		zap.String("local_status", job.Status),
+		zap.String("local_status", job.Status.String),
 		zap.String("remote_status", remoteStatus),
 	)
 
 	// ── 2. Update local status if changed ────────────────────────────────
-	if remoteStatus != job.Status {
+	if remoteStatus != job.Status.String {
 		updated, err := p.querier.UpdateScanJobStatus(ctx, db.UpdateScanJobStatusParams{
 			ID:     job.ID,
-			Status: remoteStatus,
+			Status: pgtype.Text{String: remoteStatus, Valid: true},
 		})
 		if err != nil {
 			return fmt.Errorf("UpdateScanJobStatus: %w", err)
@@ -187,7 +187,7 @@ func (p *ScanPoller) syncFindings(ctx context.Context, job db.ScanJob) error {
 	}
 
 	// Index by name (lowercased) for fuzzy matching with the third-party info_type.
-	dictByName := make(map[string]db.DataDictionaryItem, len(dictItems))
+	dictByName := make(map[string]db.DataDictionary, len(dictItems))
 	for _, item := range dictItems {
 		dictByName[toLower(item.Name)] = item
 	}

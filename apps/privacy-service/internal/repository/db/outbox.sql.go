@@ -18,12 +18,12 @@ ON CONFLICT (id) DO NOTHING
 `
 
 type InsertOutboxEventParams struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
-	AggregateType  string
-	AggregateID    string
-	EventType      string
-	Payload        []byte
+	ID             pgtype.UUID `json:"id"`
+	OrganizationID pgtype.UUID `json:"organization_id"`
+	AggregateType  string      `json:"aggregate_type"`
+	AggregateID    string      `json:"aggregate_id"`
+	EventType      string      `json:"event_type"`
+	Payload        []byte      `json:"payload"`
 }
 
 func (q *Queries) InsertOutboxEvent(ctx context.Context, arg InsertOutboxEventParams) error {

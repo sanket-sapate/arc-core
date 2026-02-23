@@ -4,25 +4,24 @@
 
 package db
 
-import "context"
+import (
+	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
+)
 
 type Querier interface {
-	// Data Dictionary
-	CreateDictionaryItem(ctx context.Context, arg CreateDictionaryItemParams) (DataDictionaryItem, error)
-	GetDictionaryItem(ctx context.Context, arg GetDictionaryItemParams) (DataDictionaryItem, error)
-	GetDictionaryItemByName(ctx context.Context, arg GetDictionaryItemByNameParams) (DataDictionaryItem, error)
-	ListDictionaryItems(ctx context.Context, organizationID interface{}) ([]DataDictionaryItem, error)
-	UpdateDictionaryItem(ctx context.Context, arg UpdateDictionaryItemParams) (DataDictionaryItem, error)
-
-	// Scan Jobs
+	CreateDictionaryItem(ctx context.Context, arg CreateDictionaryItemParams) (DataDictionary, error)
 	CreateScanJob(ctx context.Context, arg CreateScanJobParams) (ScanJob, error)
+	GetDictionaryItem(ctx context.Context, arg GetDictionaryItemParams) (DataDictionary, error)
+	GetDictionaryItemByName(ctx context.Context, arg GetDictionaryItemByNameParams) (DataDictionary, error)
 	GetScanJob(ctx context.Context, arg GetScanJobParams) (ScanJob, error)
-	ListPendingScanJobs(ctx context.Context) ([]ScanJob, error)
-	UpdateScanJobStatus(ctx context.Context, arg UpdateScanJobStatusParams) (ScanJob, error)
-	MarkScanJobSynced(ctx context.Context, id interface{}) error
-
-	// Outbox
 	InsertOutboxEvent(ctx context.Context, arg InsertOutboxEventParams) error
+	ListDictionaryItems(ctx context.Context, organizationID pgtype.UUID) ([]DataDictionary, error)
+	ListPendingScanJobs(ctx context.Context) ([]ScanJob, error)
+	MarkScanJobSynced(ctx context.Context, id pgtype.UUID) error
+	UpdateDictionaryItem(ctx context.Context, arg UpdateDictionaryItemParams) (DataDictionary, error)
+	UpdateScanJobStatus(ctx context.Context, arg UpdateScanJobStatusParams) (ScanJob, error)
 }
 
 var _ Querier = (*Queries)(nil)

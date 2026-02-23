@@ -1,0 +1,3 @@
+ALTER TABLE grievances DROP COLUMN IF EXISTS due_date;
+
+DROP TABLE IF EXISTS nominees;

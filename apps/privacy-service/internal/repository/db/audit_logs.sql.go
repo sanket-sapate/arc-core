@@ -20,11 +20,11 @@ INSERT INTO audit_logs (
 `
 
 type CreateAuditLogParams struct {
-	OrganizationID pgtype.UUID
-	Action         string
-	ActorEmail     pgtype.Text
-	TargetEntity   pgtype.Text
-	TargetID       pgtype.Text
+	OrganizationID pgtype.UUID `json:"organization_id"`
+	Action         string      `json:"action"`
+	ActorEmail     pgtype.Text `json:"actor_email"`
+	TargetEntity   pgtype.Text `json:"target_entity"`
+	TargetID       pgtype.Text `json:"target_id"`
 }
 
 func (q *Queries) CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) (AuditLog, error) {

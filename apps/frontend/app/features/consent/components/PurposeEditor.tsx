@@ -15,6 +15,9 @@ import { Textarea } from "~/components/ui/textarea";
 import { Switch } from "~/components/ui/switch";
 import { Button } from "~/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
+import { useDictionaryItems } from "~/features/data-intelligence/api/dictionary";
+import { Checkbox } from "~/components/ui/checkbox";
+import { ScrollArea } from "~/components/ui/scroll-area";
 
 interface PurposeEditorProps {
     initialData?: Purpose;
@@ -31,8 +34,12 @@ export function PurposeEditor({ initialData, onSubmit, isLoading }: PurposeEdito
             description: initialData?.description || "",
             legal_basis: initialData?.legal_basis || "consent",
             active: initialData?.active ?? true,
+            data_objects: initialData?.data_objects || [],
         },
     });
+
+    const dictionaryQuery = useDictionaryItems();
+    const dictionaryItems = dictionaryQuery.data || [];
 
     return (
         <Form {...form}>
@@ -88,6 +95,72 @@ export function PurposeEditor({ initialData, onSubmit, isLoading }: PurposeEdito
                                     <SelectItem value="legal_obligation">Legal Obligation</SelectItem>
                                 </SelectContent>
                             </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={form.control}
+                    name="data_objects"
+                    render={() => (
+                        <FormItem>
+                            <div className="mb-4">
+                                <FormLabel className="text-base">Associated Data Objects</FormLabel>
+                                <FormDescription>
+                                    Select the data objects from the dictionary that are processed for this purpose.
+                                </FormDescription>
+                            </div>
+                            <ScrollArea className="h-[200px] w-full rounded-md border p-4">
+                                {dictionaryQuery.isLoading ? (
+                                    <div className="text-sm text-muted-foreground">Loading data dictionary...</div>
+                                ) : dictionaryItems.length === 0 ? (
+                                    <div className="text-sm text-muted-foreground">No data objects found in the dictionary.</div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {dictionaryItems.map((item) => (
+                                            <FormField
+                                                key={item.id}
+                                                control={form.control}
+                                                name="data_objects"
+                                                render={({ field }) => {
+                                                    const isChecked = field.value?.includes(item.id!) || false;
+                                                    return (
+                                                        <FormItem
+                                                            key={item.id}
+                                                            className="flex flex-row items-start space-x-3 space-y-0"
+                                                        >
+                                                            <FormControl>
+                                                                <Checkbox
+                                                                    checked={isChecked}
+                                                                    onCheckedChange={(checked) => {
+                                                                        const current = field.value || [];
+                                                                        return checked
+                                                                            ? field.onChange([...current, item.id!])
+                                                                            : field.onChange(
+                                                                                current.filter(
+                                                                                    (value) => value !== item.id
+                                                                                )
+                                                                            )
+                                                                    }}
+                                                                />
+                                                            </FormControl>
+                                                            <div className="space-y-1 leading-none">
+                                                                <FormLabel className="font-normal cursor-pointer">
+                                                                    {item.name}
+                                                                </FormLabel>
+                                                                <FormDescription className="text-xs capitalize">
+                                                                    {item.category} • {item.sensitivity}
+                                                                </FormDescription>
+                                                            </div>
+                                                        </FormItem>
+                                                    )
+                                                }}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                            </ScrollArea>
                             <FormMessage />
                         </FormItem>
                     )}

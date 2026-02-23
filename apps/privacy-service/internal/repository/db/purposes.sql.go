@@ -12,21 +12,35 @@ import (
 )
 
 const createPurpose = `-- name: CreatePurpose :one
-INSERT INTO purposes (id, organization_id, name, description, legal_basis, active)
-VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, organization_id, name, description, legal_basis, active, created_at, updated_at
+INSERT INTO purposes (id, organization_id, name, description, legal_basis, active, data_objects)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+RETURNING id, organization_id, name, description, legal_basis, active, created_at, updated_at, data_objects, cardinality(data_objects)::int AS data_objects_count
 `
 
 type CreatePurposeParams struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
-	Name           string
-	Description    pgtype.Text
-	LegalBasis     pgtype.Text
-	Active         pgtype.Bool
+	ID             pgtype.UUID   `json:"id"`
+	OrganizationID pgtype.UUID   `json:"organization_id"`
+	Name           string        `json:"name"`
+	Description    pgtype.Text   `json:"description"`
+	LegalBasis     pgtype.Text   `json:"legal_basis"`
+	Active         pgtype.Bool   `json:"active"`
+	DataObjects    []pgtype.UUID `json:"data_objects"`
 }
 
-func (q *Queries) CreatePurpose(ctx context.Context, arg CreatePurposeParams) (Purpose, error) {
+type CreatePurposeRow struct {
+	ID               pgtype.UUID        `json:"id"`
+	OrganizationID   pgtype.UUID        `json:"organization_id"`
+	Name             string             `json:"name"`
+	Description      pgtype.Text        `json:"description"`
+	LegalBasis       pgtype.Text        `json:"legal_basis"`
+	Active           pgtype.Bool        `json:"active"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	DataObjects      []pgtype.UUID      `json:"data_objects"`
+	DataObjectsCount int32              `json:"data_objects_count"`
+}
+
+func (q *Queries) CreatePurpose(ctx context.Context, arg CreatePurposeParams) (CreatePurposeRow, error) {
 	row := q.db.QueryRow(ctx, createPurpose,
 		arg.ID,
 		arg.OrganizationID,
@@ -34,8 +48,9 @@ func (q *Queries) CreatePurpose(ctx context.Context, arg CreatePurposeParams) (P
 		arg.Description,
 		arg.LegalBasis,
 		arg.Active,
+		arg.DataObjects,
 	)
-	var i Purpose
+	var i CreatePurposeRow
 	err := row.Scan(
 		&i.ID,
 		&i.OrganizationID,
@@ -45,23 +60,38 @@ func (q *Queries) CreatePurpose(ctx context.Context, arg CreatePurposeParams) (P
 		&i.Active,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DataObjects,
+		&i.DataObjectsCount,
 	)
 	return i, err
 }
 
 const getPurpose = `-- name: GetPurpose :one
-SELECT id, organization_id, name, description, legal_basis, active, created_at, updated_at FROM purposes
+SELECT id, organization_id, name, description, legal_basis, active, created_at, updated_at, data_objects, cardinality(data_objects)::int AS data_objects_count FROM purposes
 WHERE id = $1 AND organization_id = $2
 `
 
 type GetPurposeParams struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
+	ID             pgtype.UUID `json:"id"`
+	OrganizationID pgtype.UUID `json:"organization_id"`
 }
 
-func (q *Queries) GetPurpose(ctx context.Context, arg GetPurposeParams) (Purpose, error) {
+type GetPurposeRow struct {
+	ID               pgtype.UUID        `json:"id"`
+	OrganizationID   pgtype.UUID        `json:"organization_id"`
+	Name             string             `json:"name"`
+	Description      pgtype.Text        `json:"description"`
+	LegalBasis       pgtype.Text        `json:"legal_basis"`
+	Active           pgtype.Bool        `json:"active"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	DataObjects      []pgtype.UUID      `json:"data_objects"`
+	DataObjectsCount int32              `json:"data_objects_count"`
+}
+
+func (q *Queries) GetPurpose(ctx context.Context, arg GetPurposeParams) (GetPurposeRow, error) {
 	row := q.db.QueryRow(ctx, getPurpose, arg.ID, arg.OrganizationID)
-	var i Purpose
+	var i GetPurposeRow
 	err := row.Scan(
 		&i.ID,
 		&i.OrganizationID,
@@ -71,25 +101,40 @@ func (q *Queries) GetPurpose(ctx context.Context, arg GetPurposeParams) (Purpose
 		&i.Active,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DataObjects,
+		&i.DataObjectsCount,
 	)
 	return i, err
 }
 
 const listPurposes = `-- name: ListPurposes :many
-SELECT id, organization_id, name, description, legal_basis, active, created_at, updated_at FROM purposes
+SELECT id, organization_id, name, description, legal_basis, active, created_at, updated_at, data_objects, cardinality(data_objects)::int AS data_objects_count FROM purposes
 WHERE organization_id = $1
 ORDER BY name ASC
 `
 
-func (q *Queries) ListPurposes(ctx context.Context, organizationID pgtype.UUID) ([]Purpose, error) {
+type ListPurposesRow struct {
+	ID               pgtype.UUID        `json:"id"`
+	OrganizationID   pgtype.UUID        `json:"organization_id"`
+	Name             string             `json:"name"`
+	Description      pgtype.Text        `json:"description"`
+	LegalBasis       pgtype.Text        `json:"legal_basis"`
+	Active           pgtype.Bool        `json:"active"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	DataObjects      []pgtype.UUID      `json:"data_objects"`
+	DataObjectsCount int32              `json:"data_objects_count"`
+}
+
+func (q *Queries) ListPurposes(ctx context.Context, organizationID pgtype.UUID) ([]ListPurposesRow, error) {
 	rows, err := q.db.Query(ctx, listPurposes, organizationID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Purpose
+	var items []ListPurposesRow
 	for rows.Next() {
-		var i Purpose
+		var i ListPurposesRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.OrganizationID,
@@ -99,6 +144,8 @@ func (q *Queries) ListPurposes(ctx context.Context, organizationID pgtype.UUID) 
 			&i.Active,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.DataObjects,
+			&i.DataObjectsCount,
 		); err != nil {
 			return nil, err
 		}
@@ -112,21 +159,35 @@ func (q *Queries) ListPurposes(ctx context.Context, organizationID pgtype.UUID) 
 
 const updatePurpose = `-- name: UpdatePurpose :one
 UPDATE purposes
-SET name = $3, description = $4, legal_basis = $5, active = $6, updated_at = NOW()
+SET name = $3, description = $4, legal_basis = $5, active = $6, data_objects = $7, updated_at = NOW()
 WHERE id = $1 AND organization_id = $2
-RETURNING id, organization_id, name, description, legal_basis, active, created_at, updated_at
+RETURNING id, organization_id, name, description, legal_basis, active, created_at, updated_at, data_objects, cardinality(data_objects)::int AS data_objects_count
 `
 
 type UpdatePurposeParams struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
-	Name           string
-	Description    pgtype.Text
-	LegalBasis     pgtype.Text
-	Active         pgtype.Bool
+	ID             pgtype.UUID   `json:"id"`
+	OrganizationID pgtype.UUID   `json:"organization_id"`
+	Name           string        `json:"name"`
+	Description    pgtype.Text   `json:"description"`
+	LegalBasis     pgtype.Text   `json:"legal_basis"`
+	Active         pgtype.Bool   `json:"active"`
+	DataObjects    []pgtype.UUID `json:"data_objects"`
 }
 
-func (q *Queries) UpdatePurpose(ctx context.Context, arg UpdatePurposeParams) (Purpose, error) {
+type UpdatePurposeRow struct {
+	ID               pgtype.UUID        `json:"id"`
+	OrganizationID   pgtype.UUID        `json:"organization_id"`
+	Name             string             `json:"name"`
+	Description      pgtype.Text        `json:"description"`
+	LegalBasis       pgtype.Text        `json:"legal_basis"`
+	Active           pgtype.Bool        `json:"active"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	DataObjects      []pgtype.UUID      `json:"data_objects"`
+	DataObjectsCount int32              `json:"data_objects_count"`
+}
+
+func (q *Queries) UpdatePurpose(ctx context.Context, arg UpdatePurposeParams) (UpdatePurposeRow, error) {
 	row := q.db.QueryRow(ctx, updatePurpose,
 		arg.ID,
 		arg.OrganizationID,
@@ -134,8 +195,9 @@ func (q *Queries) UpdatePurpose(ctx context.Context, arg UpdatePurposeParams) (P
 		arg.Description,
 		arg.LegalBasis,
 		arg.Active,
+		arg.DataObjects,
 	)
-	var i Purpose
+	var i UpdatePurposeRow
 	err := row.Scan(
 		&i.ID,
 		&i.OrganizationID,
@@ -145,6 +207,8 @@ func (q *Queries) UpdatePurpose(ctx context.Context, arg UpdatePurposeParams) (P
 		&i.Active,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DataObjects,
+		&i.DataObjectsCount,
 	)
 	return i, err
 }

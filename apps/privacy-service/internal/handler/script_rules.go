@@ -48,10 +48,15 @@ type UpdateScriptRuleRequest struct {
 	Active       *bool      `json:"active,omitempty"`
 }
 
-func (h *Handler) CreateScriptRule(c echo.Context) error {
-	tenantID, err := coreMw.GetTenantID(c)
+func (h *ScriptRuleHandler) CreateScriptRule(c echo.Context) error {
+	orgIDStr, ok := coreMw.GetOrgID(c.Request().Context())
+	if !ok {
+		h.logger.Warn("Missing org ID")
+		return echo.ErrUnauthorized
+	}
+	tenantID, err := uuid.Parse(orgIDStr)
 	if err != nil {
-		h.logger.Warn("Missing tenant ID", zap.Error(err))
+		h.logger.Warn("Invalid org ID", zap.Error(err))
 		return echo.ErrUnauthorized
 	}
 
@@ -83,10 +88,15 @@ func (h *Handler) CreateScriptRule(c echo.Context) error {
 	return c.JSON(http.StatusCreated, rule)
 }
 
-func (h *Handler) ListScriptRules(c echo.Context) error {
-	tenantID, err := coreMw.GetTenantID(c)
+func (h *ScriptRuleHandler) ListScriptRules(c echo.Context) error {
+	orgIDStr, ok := coreMw.GetOrgID(c.Request().Context())
+	if !ok {
+		h.logger.Warn("Missing org ID")
+		return echo.ErrUnauthorized
+	}
+	tenantID, err := uuid.Parse(orgIDStr)
 	if err != nil {
-		h.logger.Warn("Missing tenant ID", zap.Error(err))
+		h.logger.Warn("Invalid org ID", zap.Error(err))
 		return echo.ErrUnauthorized
 	}
 
@@ -107,10 +117,15 @@ func (h *Handler) ListScriptRules(c echo.Context) error {
 	return c.JSON(http.StatusOK, rules)
 }
 
-func (h *Handler) GetScriptRule(c echo.Context) error {
-	tenantID, err := coreMw.GetTenantID(c)
+func (h *ScriptRuleHandler) GetScriptRule(c echo.Context) error {
+	orgIDStr, ok := coreMw.GetOrgID(c.Request().Context())
+	if !ok {
+		h.logger.Warn("Missing org ID")
+		return echo.ErrUnauthorized
+	}
+	tenantID, err := uuid.Parse(orgIDStr)
 	if err != nil {
-		h.logger.Warn("Missing tenant ID", zap.Error(err))
+		h.logger.Warn("Invalid org ID", zap.Error(err))
 		return echo.ErrUnauthorized
 	}
 
@@ -135,10 +150,15 @@ func (h *Handler) GetScriptRule(c echo.Context) error {
 	return c.JSON(http.StatusOK, rule)
 }
 
-func (h *Handler) UpdateScriptRule(c echo.Context) error {
-	tenantID, err := coreMw.GetTenantID(c)
+func (h *ScriptRuleHandler) UpdateScriptRule(c echo.Context) error {
+	orgIDStr, ok := coreMw.GetOrgID(c.Request().Context())
+	if !ok {
+		h.logger.Warn("Missing org ID")
+		return echo.ErrUnauthorized
+	}
+	tenantID, err := uuid.Parse(orgIDStr)
 	if err != nil {
-		h.logger.Warn("Missing tenant ID", zap.Error(err))
+		h.logger.Warn("Invalid org ID", zap.Error(err))
 		return echo.ErrUnauthorized
 	}
 
@@ -189,10 +209,15 @@ func (h *Handler) UpdateScriptRule(c echo.Context) error {
 	return c.JSON(http.StatusOK, rule)
 }
 
-func (h *Handler) DeleteScriptRule(c echo.Context) error {
-	tenantID, err := coreMw.GetTenantID(c)
+func (h *ScriptRuleHandler) DeleteScriptRule(c echo.Context) error {
+	orgIDStr, ok := coreMw.GetOrgID(c.Request().Context())
+	if !ok {
+		h.logger.Warn("Missing org ID")
+		return echo.ErrUnauthorized
+	}
+	tenantID, err := uuid.Parse(orgIDStr)
 	if err != nil {
-		h.logger.Warn("Missing tenant ID", zap.Error(err))
+		h.logger.Warn("Invalid org ID", zap.Error(err))
 		return echo.ErrUnauthorized
 	}
 

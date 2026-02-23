@@ -22,19 +22,19 @@ INSERT INTO cookie_banners (
 `
 
 type CreateCookieBannerParams struct {
-	ID                 pgtype.UUID
-	OrganizationID     pgtype.UUID
-	Domain             string
-	Name               pgtype.Text
-	Title              pgtype.Text
-	Message            pgtype.Text
-	AcceptButtonText   pgtype.Text
-	RejectButtonText   pgtype.Text
-	SettingsButtonText pgtype.Text
-	Theme              pgtype.Text
-	Position           pgtype.Text
-	Active             pgtype.Bool
-	Config             []byte
+	ID                 pgtype.UUID `json:"id"`
+	OrganizationID     pgtype.UUID `json:"organization_id"`
+	Domain             string      `json:"domain"`
+	Name               pgtype.Text `json:"name"`
+	Title              pgtype.Text `json:"title"`
+	Message            pgtype.Text `json:"message"`
+	AcceptButtonText   pgtype.Text `json:"accept_button_text"`
+	RejectButtonText   pgtype.Text `json:"reject_button_text"`
+	SettingsButtonText pgtype.Text `json:"settings_button_text"`
+	Theme              pgtype.Text `json:"theme"`
+	Position           pgtype.Text `json:"position"`
+	Active             pgtype.Bool `json:"active"`
+	Config             []byte      `json:"config"`
 }
 
 func (q *Queries) CreateCookieBanner(ctx context.Context, arg CreateCookieBannerParams) (CookieBanner, error) {
@@ -80,8 +80,8 @@ WHERE id = $1 AND organization_id = $2
 `
 
 type DeleteCookieBannerParams struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
+	ID             pgtype.UUID `json:"id"`
+	OrganizationID pgtype.UUID `json:"organization_id"`
 }
 
 func (q *Queries) DeleteCookieBanner(ctx context.Context, arg DeleteCookieBannerParams) error {
@@ -95,8 +95,8 @@ WHERE id = $1 AND organization_id = $2
 `
 
 type GetCookieBannerParams struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
+	ID             pgtype.UUID `json:"id"`
+	OrganizationID pgtype.UUID `json:"organization_id"`
 }
 
 func (q *Queries) GetCookieBanner(ctx context.Context, arg GetCookieBannerParams) (CookieBanner, error) {
@@ -128,8 +128,8 @@ WHERE organization_id = $1 AND domain = $2
 `
 
 type GetCookieBannerByDomainParams struct {
-	OrganizationID pgtype.UUID
-	Domain         string
+	OrganizationID pgtype.UUID `json:"organization_id"`
+	Domain         string      `json:"domain"`
 }
 
 func (q *Queries) GetCookieBannerByDomain(ctx context.Context, arg GetCookieBannerByDomainParams) (CookieBanner, error) {
@@ -208,18 +208,18 @@ RETURNING id, organization_id, domain, name, title, message, accept_button_text,
 `
 
 type UpdateCookieBannerParams struct {
-	ID                 pgtype.UUID
-	OrganizationID     pgtype.UUID
-	Name               pgtype.Text
-	Title              pgtype.Text
-	Message            pgtype.Text
-	AcceptButtonText   pgtype.Text
-	RejectButtonText   pgtype.Text
-	SettingsButtonText pgtype.Text
-	Theme              pgtype.Text
-	Position           pgtype.Text
-	Active             pgtype.Bool
-	Config             []byte
+	ID                 pgtype.UUID `json:"id"`
+	OrganizationID     pgtype.UUID `json:"organization_id"`
+	Name               pgtype.Text `json:"name"`
+	Title              pgtype.Text `json:"title"`
+	Message            pgtype.Text `json:"message"`
+	AcceptButtonText   pgtype.Text `json:"accept_button_text"`
+	RejectButtonText   pgtype.Text `json:"reject_button_text"`
+	SettingsButtonText pgtype.Text `json:"settings_button_text"`
+	Theme              pgtype.Text `json:"theme"`
+	Position           pgtype.Text `json:"position"`
+	Active             pgtype.Bool `json:"active"`
+	Config             []byte      `json:"config"`
 }
 
 func (q *Queries) UpdateCookieBanner(ctx context.Context, arg UpdateCookieBannerParams) (CookieBanner, error) {

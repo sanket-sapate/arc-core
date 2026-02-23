@@ -22,12 +22,14 @@ import { Skeleton } from "~/components/ui/skeleton";
 import { PurposeEditor } from "~/features/consent/components/PurposeEditor";
 import { usePurposes, useCreatePurpose, useUpdatePurpose } from "~/features/consent/api/purposes";
 import type { Purpose } from "~/features/consent/types/purpose";
+import { useDictionaryItems } from "~/features/data-intelligence/api/dictionary";
 
 export default function PurposesPage() {
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [editingPurpose, setEditingPurpose] = useState<Purpose | null>(null);
 
     const { data: purposes, isLoading } = usePurposes();
+    const { data: dictionaryItems = [] } = useDictionaryItems();
     const createPurpose = useCreatePurpose();
     const updatePurpose = useUpdatePurpose();
 
@@ -114,6 +116,7 @@ export default function PurposesPage() {
                             <TableHead>Name</TableHead>
                             <TableHead>Description</TableHead>
                             <TableHead>Legal Basis</TableHead>
+                            <TableHead>Data Objects</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
@@ -125,6 +128,7 @@ export default function PurposesPage() {
                                     <TableCell><Skeleton className="h-4 w-[150px]" /></TableCell>
                                     <TableCell><Skeleton className="h-4 w-[250px]" /></TableCell>
                                     <TableCell><Skeleton className="h-4 w-[120px]" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-[100px]" /></TableCell>
                                     <TableCell><Skeleton className="h-5 w-[60px] rounded-full" /></TableCell>
                                     <TableCell className="text-right">
                                         <Skeleton className="h-8 w-10 ml-auto" />
@@ -133,7 +137,7 @@ export default function PurposesPage() {
                             ))
                         ) : purposes?.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                                     No purposes found. Create one.
                                 </TableCell>
                             </TableRow>
@@ -146,6 +150,21 @@ export default function PurposesPage() {
                                     </TableCell>
                                     <TableCell>
                                         <Badge variant="outline">{formatBasis(purpose.legal_basis || "consent")}</Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        {purpose.data_objects?.length ? (
+                                            <div className="flex flex-wrap gap-1">
+                                                {purpose.data_objects.slice(0, 2).map((id) => {
+                                                    const item = dictionaryItems.find((d) => d.id === id);
+                                                    return <Badge key={id} variant="secondary" className="font-normal text-xs">{item?.name || "Unknown"}</Badge>;
+                                                })}
+                                                {purpose.data_objects.length > 2 && (
+                                                    <Badge variant="secondary" className="font-normal text-xs">+{purpose.data_objects.length - 2}</Badge>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <span className="text-muted-foreground text-sm">—</span>
+                                        )}
                                     </TableCell>
                                     <TableCell>
                                         {purpose.active ? (

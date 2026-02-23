@@ -17,6 +17,11 @@ x-service-defaults: &service-defaults
   env_file: .env.prod
   networks:
     - internal
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "100m"
+      max-file: "3"
 
 x-go-service: &go-service
   <<: *service-defaults
@@ -159,6 +164,7 @@ services:
       VAULT_TOKEN: ${VAULT_ROOT_TOKEN}
       VAULT_SECRET_PATH: ${VAULT_SECRET_PATH_PREFIX}/privacy-service
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+      PORTAL_JWT_SECRET: ${PORTAL_JWT_SECRET}
 
   cookie-scanner:
     <<: *go-service

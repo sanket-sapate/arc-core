@@ -18,13 +18,13 @@ RETURNING id, organization_id, name, vendor_id, status, risk_level, form_data, c
 `
 
 type CreateDPIAParams struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
-	Name           string
-	VendorID       pgtype.UUID
-	Status         pgtype.Text
-	RiskLevel      pgtype.Text
-	FormData       []byte
+	ID             pgtype.UUID `json:"id"`
+	OrganizationID pgtype.UUID `json:"organization_id"`
+	Name           string      `json:"name"`
+	VendorID       pgtype.UUID `json:"vendor_id"`
+	Status         pgtype.Text `json:"status"`
+	RiskLevel      pgtype.Text `json:"risk_level"`
+	FormData       []byte      `json:"form_data"`
 }
 
 func (q *Queries) CreateDPIA(ctx context.Context, arg CreateDPIAParams) (Dpia, error) {
@@ -58,8 +58,8 @@ WHERE id = $1 AND organization_id = $2
 `
 
 type GetDPIAParams struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
+	ID             pgtype.UUID `json:"id"`
+	OrganizationID pgtype.UUID `json:"organization_id"`
 }
 
 func (q *Queries) GetDPIA(ctx context.Context, arg GetDPIAParams) (Dpia, error) {
@@ -123,13 +123,13 @@ RETURNING id, organization_id, name, vendor_id, status, risk_level, form_data, c
 `
 
 type UpdateDPIAParams struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
-	Name           string
-	VendorID       pgtype.UUID
-	Status         pgtype.Text
-	RiskLevel      pgtype.Text
-	FormData       []byte
+	ID             pgtype.UUID `json:"id"`
+	OrganizationID pgtype.UUID `json:"organization_id"`
+	Name           string      `json:"name"`
+	VendorID       pgtype.UUID `json:"vendor_id"`
+	Status         pgtype.Text `json:"status"`
+	RiskLevel      pgtype.Text `json:"risk_level"`
+	FormData       []byte      `json:"form_data"`
 }
 
 func (q *Queries) UpdateDPIA(ctx context.Context, arg UpdateDPIAParams) (Dpia, error) {

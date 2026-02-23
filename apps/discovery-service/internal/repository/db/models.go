@@ -8,35 +8,35 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type OutboxEvent struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
-	AggregateType  string
-	AggregateID    string
-	EventType      string
-	Payload        []byte
-	CreatedAt      pgtype.Timestamptz
+type DataDictionary struct {
+	ID               pgtype.UUID        `json:"id"`
+	OrganizationID   pgtype.UUID        `json:"organization_id"`
+	Name             string             `json:"name"`
+	Category         pgtype.Text        `json:"category"`
+	Sensitivity      pgtype.Text        `json:"sensitivity"`
+	ThirdPartyRuleID pgtype.Text        `json:"third_party_rule_id"`
+	Active           pgtype.Bool        `json:"active"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
 }
 
-type DataDictionaryItem struct {
-	ID               pgtype.UUID
-	OrganizationID   pgtype.UUID
-	Name             string
-	Category         pgtype.Text
-	Sensitivity      pgtype.Text
-	ThirdPartyRuleID pgtype.Text
-	Active           pgtype.Bool
-	CreatedAt        pgtype.Timestamptz
-	UpdatedAt        pgtype.Timestamptz
+type OutboxEvent struct {
+	ID             pgtype.UUID        `json:"id"`
+	OrganizationID pgtype.UUID        `json:"organization_id"`
+	AggregateType  string             `json:"aggregate_type"`
+	AggregateID    string             `json:"aggregate_id"`
+	EventType      string             `json:"event_type"`
+	Payload        []byte             `json:"payload"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
 
 type ScanJob struct {
-	ID               pgtype.UUID
-	OrganizationID   pgtype.UUID
-	ThirdPartyJobID  string
-	SourceName       string
-	Status           string
-	FindingsSynced   pgtype.Bool
-	CreatedAt        pgtype.Timestamptz
-	UpdatedAt        pgtype.Timestamptz
+	ID              pgtype.UUID        `json:"id"`
+	OrganizationID  pgtype.UUID        `json:"organization_id"`
+	ThirdPartyJobID string             `json:"third_party_job_id"`
+	SourceName      string             `json:"source_name"`
+	Status          pgtype.Text        `json:"status"`
+	FindingsSynced  pgtype.Bool        `json:"findings_synced"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
 }

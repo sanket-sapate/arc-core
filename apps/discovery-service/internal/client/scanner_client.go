@@ -152,21 +152,42 @@ type createRuleResponse struct {
 
 // CreateRule registers a detection rule and returns the third-party rule_id.
 func (c *httpScannerClient) CreateRule(ctx context.Context, tenantID, name, pattern string) (string, error) {
-	path := "/api/v1/admin/rules"
-	if strings.HasSuffix(c.baseURL, "/") {
-		path = "api/v1/admin/rules"
+	baseURL := strings.TrimRight(c.baseURL, "/")
+	// If the baseURL already ends with /api/v1, don't append it again
+	if strings.HasSuffix(baseURL, "/api/v1") {
+		baseURL = strings.TrimSuffix(baseURL, "/api/v1")
+	}
+	targetURL := fmt.Sprintf("%s/api/v1/admin/rules", baseURL)
+
+	// Default dummy pattern if none provided to avoid scanner 400
+	p := pattern
+	if p == "" {
+		p = "(?i).*"
 	}
 
-	req, err := c.newRequest(ctx, http.MethodPost, path, tenantID, createRuleRequest{
+	body := createRuleRequest{
 		Name:     name,
-		Pattern:  pattern,
-		Severity: "high",
-	})
+		Pattern:  p,
+		Severity: "HIGH",
+	}
+
+	b, err := json.Marshal(body)
+	if err != nil {
+		return "", fmt.Errorf("scanner client: marshal request body: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, bytes.NewReader(b))
 	if err != nil {
 		return "", err
 	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("X-Tenant-ID", tenantID)
+	if c.apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	}
 
-	log.Printf("Sending CreateRule to: %s", req.URL.String())
+	log.Printf("Scanner Client - Sending CreateRule to: %s", targetURL)
 
 	var resp createRuleResponse
 	if err := c.doJSON(req, &resp); err != nil {

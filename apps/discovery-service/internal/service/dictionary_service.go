@@ -75,13 +75,13 @@ type DictionaryService interface {
 	// CreateDictionaryItem first creates the corresponding rule in the third-party
 	// scanning API, then persists the item locally and emits an outbox event so
 	// downstream services (privacy-service, trm-service) can replicate it.
-	CreateDictionaryItem(ctx context.Context, params CreateDictionaryItemInput) (db.DataDictionaryItem, error)
+	CreateDictionaryItem(ctx context.Context, params CreateDictionaryItemInput) (db.DataDictionary, error)
 
 	// GetDictionaryItem retrieves a single dictionary item by ID.
-	GetDictionaryItem(ctx context.Context, id string) (db.DataDictionaryItem, error)
+	GetDictionaryItem(ctx context.Context, id string) (db.DataDictionary, error)
 
 	// ListDictionaryItems returns all items for the caller's organisation.
-	ListDictionaryItems(ctx context.Context) ([]db.DataDictionaryItem, error)
+	ListDictionaryItems(ctx context.Context) ([]db.DataDictionary, error)
 }
 
 // CreateDictionaryItemInput carries the caller-supplied fields for a new item.
@@ -113,14 +113,14 @@ func NewDictionaryService(pool *pgxpool.Pool, q db.Querier, scanner client.Scann
 //  3. Insert the data_dictionary row (including the returned third_party_rule_id).
 //  4. Insert an outbox_events row (DataDictionaryItemCreated) for NATS fan-out.
 //  5. Commit – both inserts succeed atomically or both roll back.
-func (s *dictionaryService) CreateDictionaryItem(ctx context.Context, params CreateDictionaryItemInput) (db.DataDictionaryItem, error) {
+func (s *dictionaryService) CreateDictionaryItem(ctx context.Context, params CreateDictionaryItemInput) (db.DataDictionary, error) {
 	if params.Name == "" {
-		return db.DataDictionaryItem{}, fmt.Errorf("%w: name is required", ErrInvalidInput)
+		return db.DataDictionary{}, fmt.Errorf("%w: name is required", ErrInvalidInput)
 	}
 
 	orgID, err := mustGetOrgID(ctx)
 	if err != nil {
-		return db.DataDictionaryItem{}, err
+		return db.DataDictionary{}, err
 	}
 
 	// Resolve tenant ID from context (re-use the org ID string as the tenant hint).
@@ -137,13 +137,13 @@ func (s *dictionaryService) CreateDictionaryItem(ctx context.Context, params Cre
 	// ── Step 1: register the rule on the third-party API ──────────────────
 	ruleID, err := s.scanner.CreateRule(ctx, tenantIDStr, params.Name, params.Pattern)
 	if err != nil {
-		return db.DataDictionaryItem{}, fmt.Errorf("scanner.CreateRule: %w", err)
+		return db.DataDictionary{}, fmt.Errorf("scanner.CreateRule: %w", err)
 	}
 
 	// ── Step 2–5: atomic DB write ─────────────────────────────────────────
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
-		return db.DataDictionaryItem{}, fmt.Errorf("begin tx: %w", err)
+		return db.DataDictionary{}, fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
@@ -159,7 +159,7 @@ func (s *dictionaryService) CreateDictionaryItem(ctx context.Context, params Cre
 		Active:           pgtype.Bool{Bool: true, Valid: true},
 	})
 	if err != nil {
-		return db.DataDictionaryItem{}, fmt.Errorf("insert data_dictionary: %w", err)
+		return db.DataDictionary{}, fmt.Errorf("insert data_dictionary: %w", err)
 	}
 
 	payloadMap := map[string]interface{}{
@@ -179,38 +179,38 @@ func (s *dictionaryService) CreateDictionaryItem(ctx context.Context, params Cre
 		EventType:      "DataDictionaryItemCreated",
 		Payload:        payload,
 	}); err != nil {
-		return db.DataDictionaryItem{}, fmt.Errorf("outbox insert: %w", err)
+		return db.DataDictionary{}, fmt.Errorf("outbox insert: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return db.DataDictionaryItem{}, fmt.Errorf("commit tx: %w", err)
+		return db.DataDictionary{}, fmt.Errorf("commit tx: %w", err)
 	}
 
 	return item, nil
 }
 
 // GetDictionaryItem retrieves a single item scoped to the caller's organisation.
-func (s *dictionaryService) GetDictionaryItem(ctx context.Context, id string) (db.DataDictionaryItem, error) {
+func (s *dictionaryService) GetDictionaryItem(ctx context.Context, id string) (db.DataDictionary, error) {
 	orgID, err := mustGetOrgID(ctx)
 	if err != nil {
-		return db.DataDictionaryItem{}, err
+		return db.DataDictionary{}, err
 	}
 	itemID, err := parseUUID(id)
 	if err != nil {
-		return db.DataDictionaryItem{}, fmt.Errorf("%w: invalid id", ErrInvalidInput)
+		return db.DataDictionary{}, fmt.Errorf("%w: invalid id", ErrInvalidInput)
 	}
 	item, err := s.querier.GetDictionaryItem(ctx, db.GetDictionaryItemParams{
 		ID:             itemID,
 		OrganizationID: orgID,
 	})
 	if err != nil {
-		return db.DataDictionaryItem{}, fmt.Errorf("%w: data_dictionary item", ErrNotFound)
+		return db.DataDictionary{}, fmt.Errorf("%w: data_dictionary item", ErrNotFound)
 	}
 	return item, nil
 }
 
 // ListDictionaryItems returns all active and inactive items for the organisation.
-func (s *dictionaryService) ListDictionaryItems(ctx context.Context) ([]db.DataDictionaryItem, error) {
+func (s *dictionaryService) ListDictionaryItems(ctx context.Context) ([]db.DataDictionary, error) {
 	orgID, err := mustGetOrgID(ctx)
 	if err != nil {
 		return nil, err
@@ -283,7 +283,7 @@ func (s *scanService) TriggerScan(ctx context.Context, params TriggerScanInput) 
 		OrganizationID:  orgID,
 		ThirdPartyJobID: jobID,
 		SourceName:      params.SourceName,
-		Status:          "PENDING",
+		Status:          pgtype.Text{String: "PENDING", Valid: true},
 		FindingsSynced:  pgtype.Bool{Bool: false, Valid: true},
 	})
 	if err != nil {

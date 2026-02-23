@@ -24,11 +24,11 @@ INSERT INTO cookie_consents (
 `
 
 type InsertCookieConsentParams struct {
-	OrganizationID pgtype.UUID
-	AnonymousID    pgtype.Text
-	Consents       []byte
-	IpAddress      pgtype.Text
-	UserAgent      pgtype.Text
+	OrganizationID pgtype.UUID `json:"organization_id"`
+	AnonymousID    pgtype.Text `json:"anonymous_id"`
+	Consents       []byte      `json:"consents"`
+	IpAddress      pgtype.Text `json:"ip_address"`
+	UserAgent      pgtype.Text `json:"user_agent"`
 }
 
 func (q *Queries) InsertCookieConsent(ctx context.Context, arg InsertCookieConsentParams) error {

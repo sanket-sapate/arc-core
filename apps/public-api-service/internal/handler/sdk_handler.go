@@ -51,6 +51,7 @@ func (h *SDKHandler) Register(e *echo.Echo) {
 	v1 := e.Group("/v1/sdk")
 	v1.GET("/banner/:organization_id/:domain", h.GetBanner)
 	v1.POST("/consent", h.SubmitConsent)
+	v1.GET("/widget.js", h.GetWidget)
 }
 
 // ── GET /v1/sdk/banner/:organization_id/:domain ───────────────────────────
@@ -99,11 +100,31 @@ func (h *SDKHandler) GetBanner(c echo.Context) error {
 	return c.String(http.StatusOK, val)
 }
 
+// ── GET /v1/sdk/widget.js ────────────────────────────────────────────────
+
+// GetWidget serves the embeddable JavaScript widget for data subjects.
+//
+// @Summary      Get embeddable widget
+// @Description  Returns the JavaScript widget file that clients embed on their websites.
+// @ID           get-widget
+// @Tags         SDK
+// @Produce      application/javascript
+// @Success      200  {string}  string  "JavaScript widget code"
+// @Router       /v1/sdk/widget.js [get]
+func (h *SDKHandler) GetWidget(c echo.Context) error {
+	ctx, span := otel.Tracer("public-api").Start(c.Request().Context(), "sdk.GetWidget")
+	defer span.End()
+
+	c.Response().Header().Set("Cache-Control", "public, max-age=300, stale-while-revalidate=60")
+	return c.File("static/widget.js")
+}
+
 // ── POST /v1/sdk/consent ─────────────────────────────────────────────────
 
 // consentPayload is the body accepted from the widget SDK.
 type consentPayload struct {
 	OrganizationID string          `json:"organization_id"`
+	Domain         string          `json:"domain"`
 	AnonymousID    string          `json:"anonymous_id"`
 	Consents       json.RawMessage `json:"consents"`    // arbitrary k/v pairs
 	IPAddress      string          `json:"ip_address"`
@@ -115,6 +136,7 @@ type consentPayload struct {
 // submission time rather than the DB insertion time.
 type natsConsentEvent struct {
 	OrganizationID string          `json:"organization_id"`
+	Domain         string          `json:"domain"`
 	AnonymousID    string          `json:"anonymous_id"`
 	Consents       json.RawMessage `json:"consents"`
 	IPAddress      string          `json:"ip_address"`
@@ -161,6 +183,7 @@ func (h *SDKHandler) SubmitConsent(c echo.Context) error {
 
 	event := natsConsentEvent{
 		OrganizationID: req.OrganizationID,
+		Domain:         req.Domain,
 		AnonymousID:    req.AnonymousID,
 		Consents:       req.Consents,
 		IPAddress:      req.IPAddress,

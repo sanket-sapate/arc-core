@@ -9,148 +9,181 @@ import (
 )
 
 type AuditLog struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
-	Action         string
-	ActorEmail     pgtype.Text
-	TargetEntity   pgtype.Text
-	TargetID       pgtype.Text
-	Timestamp      pgtype.Timestamptz
+	ID             pgtype.UUID        `json:"id"`
+	OrganizationID pgtype.UUID        `json:"organization_id"`
+	Action         string             `json:"action"`
+	ActorEmail     pgtype.Text        `json:"actor_email"`
+	TargetEntity   pgtype.Text        `json:"target_entity"`
+	TargetID       pgtype.Text        `json:"target_id"`
+	Timestamp      pgtype.Timestamptz `json:"timestamp"`
 }
 
 type Breach struct {
-	ID              pgtype.UUID
-	OrganizationID  pgtype.UUID
-	Title           string
-	Severity        pgtype.Text
-	Status          pgtype.Text
-	IncidentDate    pgtype.Timestamptz
-	Description     pgtype.Text
-	RemediationPlan pgtype.Text
-	CreatedAt       pgtype.Timestamptz
-	UpdatedAt       pgtype.Timestamptz
+	ID              pgtype.UUID        `json:"id"`
+	OrganizationID  pgtype.UUID        `json:"organization_id"`
+	Title           string             `json:"title"`
+	Severity        pgtype.Text        `json:"severity"`
+	Status          pgtype.Text        `json:"status"`
+	IncidentDate    pgtype.Timestamptz `json:"incident_date"`
+	Description     pgtype.Text        `json:"description"`
+	RemediationPlan pgtype.Text        `json:"remediation_plan"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
 }
 
 type ConsentForm struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
-	Name           string
-	Description    pgtype.Text
-	Active         pgtype.Bool
-	FormConfig     []byte
-	Purposes       []pgtype.UUID
-	CreatedAt      pgtype.Timestamptz
-	UpdatedAt      pgtype.Timestamptz
+	ID             pgtype.UUID        `json:"id"`
+	OrganizationID pgtype.UUID        `json:"organization_id"`
+	Name           string             `json:"name"`
+	Description    pgtype.Text        `json:"description"`
+	Active         pgtype.Bool        `json:"active"`
+	FormConfig     []byte             `json:"form_config"`
+	Purposes       []pgtype.UUID      `json:"purposes"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+type ConsentReceipt struct {
+	ID             pgtype.UUID        `json:"id"`
+	OrganizationID pgtype.UUID        `json:"organization_id"`
+	Domain         string             `json:"domain"`
+	AnonymousID    string             `json:"anonymous_id"`
+	Consents       []byte             `json:"consents"`
+	IpAddress      pgtype.Text        `json:"ip_address"`
+	UserAgent      pgtype.Text        `json:"user_agent"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
 
 type CookieBanner struct {
-	ID                 pgtype.UUID
-	OrganizationID     pgtype.UUID
-	Domain             string
-	Name               pgtype.Text
-	Title              pgtype.Text
-	Message            pgtype.Text
-	AcceptButtonText   pgtype.Text
-	RejectButtonText   pgtype.Text
-	SettingsButtonText pgtype.Text
-	Theme              pgtype.Text
-	Position           pgtype.Text
-	Active             pgtype.Bool
-	Config             []byte
-	CreatedAt          pgtype.Timestamptz
-	UpdatedAt          pgtype.Timestamptz
+	ID                 pgtype.UUID        `json:"id"`
+	OrganizationID     pgtype.UUID        `json:"organization_id"`
+	Domain             string             `json:"domain"`
+	Name               pgtype.Text        `json:"name"`
+	Title              pgtype.Text        `json:"title"`
+	Message            pgtype.Text        `json:"message"`
+	AcceptButtonText   pgtype.Text        `json:"accept_button_text"`
+	RejectButtonText   pgtype.Text        `json:"reject_button_text"`
+	SettingsButtonText pgtype.Text        `json:"settings_button_text"`
+	Theme              pgtype.Text        `json:"theme"`
+	Position           pgtype.Text        `json:"position"`
+	Active             pgtype.Bool        `json:"active"`
+	Config             []byte             `json:"config"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
 }
 
 type CookieConsent struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
-	AnonymousID    pgtype.Text
-	Consents       []byte
-	IpAddress      pgtype.Text
-	UserAgent      pgtype.Text
-	CreatedAt      pgtype.Timestamptz
+	ID             pgtype.UUID        `json:"id"`
+	OrganizationID pgtype.UUID        `json:"organization_id"`
+	AnonymousID    pgtype.Text        `json:"anonymous_id"`
+	Consents       []byte             `json:"consents"`
+	IpAddress      pgtype.Text        `json:"ip_address"`
+	UserAgent      pgtype.Text        `json:"user_agent"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
 
 type Dpia struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
-	Name           string
-	VendorID       pgtype.UUID
-	Status         pgtype.Text
-	RiskLevel      pgtype.Text
-	FormData       []byte
-	CreatedAt      pgtype.Timestamptz
-	UpdatedAt      pgtype.Timestamptz
+	ID             pgtype.UUID        `json:"id"`
+	OrganizationID pgtype.UUID        `json:"organization_id"`
+	Name           string             `json:"name"`
+	VendorID       pgtype.UUID        `json:"vendor_id"`
+	Status         pgtype.Text        `json:"status"`
+	RiskLevel      pgtype.Text        `json:"risk_level"`
+	FormData       []byte             `json:"form_data"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 }
 
 type Grievance struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
-	ReporterEmail  pgtype.Text
-	IssueType      string
-	Description    pgtype.Text
-	Status         pgtype.Text
-	Priority       pgtype.Text
-	Resolution     pgtype.Text
-	CreatedAt      pgtype.Timestamptz
-	UpdatedAt      pgtype.Timestamptz
+	ID             pgtype.UUID        `json:"id"`
+	OrganizationID pgtype.UUID        `json:"organization_id"`
+	ReporterEmail  pgtype.Text        `json:"reporter_email"`
+	IssueType      string             `json:"issue_type"`
+	Description    pgtype.Text        `json:"description"`
+	Status         pgtype.Text        `json:"status"`
+	Priority       pgtype.Text        `json:"priority"`
+	Resolution     pgtype.Text        `json:"resolution"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	DueDate        pgtype.Timestamptz `json:"due_date"`
+}
+
+type MagicToken struct {
+	ID        pgtype.UUID        `json:"id"`
+	Email     string             `json:"email"`
+	Token     string             `json:"token"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+	UsedAt    pgtype.Timestamptz `json:"used_at"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+type Nominee struct {
+	ID              pgtype.UUID        `json:"id"`
+	UserEmail       string             `json:"user_email"`
+	NomineeName     string             `json:"nominee_name"`
+	NomineeEmail    string             `json:"nominee_email"`
+	NomineeRelation string             `json:"nominee_relation"`
+	Status          pgtype.Text        `json:"status"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
 }
 
 type OutboxEvent struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
-	AggregateType  string
-	AggregateID    string
-	EventType      string
-	Payload        []byte
-	CreatedAt      pgtype.Timestamptz
+	ID             pgtype.UUID        `json:"id"`
+	OrganizationID pgtype.UUID        `json:"organization_id"`
+	AggregateType  string             `json:"aggregate_type"`
+	AggregateID    string             `json:"aggregate_id"`
+	EventType      string             `json:"event_type"`
+	Payload        []byte             `json:"payload"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
 
 type PrivacyRequest struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
-	Type           string
-	Status         pgtype.Text
-	RequesterEmail pgtype.Text
-	RequesterName  pgtype.Text
-	Description    pgtype.Text
-	Resolution     pgtype.Text
-	CreatedAt      pgtype.Timestamptz
-	UpdatedAt      pgtype.Timestamptz
-	DueDate        pgtype.Timestamptz
+	ID             pgtype.UUID        `json:"id"`
+	OrganizationID pgtype.UUID        `json:"organization_id"`
+	Type           string             `json:"type"`
+	Status         pgtype.Text        `json:"status"`
+	RequesterEmail pgtype.Text        `json:"requester_email"`
+	RequesterName  pgtype.Text        `json:"requester_name"`
+	Description    pgtype.Text        `json:"description"`
+	Resolution     pgtype.Text        `json:"resolution"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	DueDate        pgtype.Timestamptz `json:"due_date"`
 }
 
 type Purpose struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
-	Name           string
-	Description    pgtype.Text
-	LegalBasis     pgtype.Text
-	Active         pgtype.Bool
-	CreatedAt      pgtype.Timestamptz
-	UpdatedAt      pgtype.Timestamptz
+	ID             pgtype.UUID        `json:"id"`
+	OrganizationID pgtype.UUID        `json:"organization_id"`
+	Name           string             `json:"name"`
+	Description    pgtype.Text        `json:"description"`
+	LegalBasis     pgtype.Text        `json:"legal_basis"`
+	Active         pgtype.Bool        `json:"active"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	DataObjects    []pgtype.UUID      `json:"data_objects"`
 }
 
 type Ropa struct {
-	ID                 pgtype.UUID
-	OrganizationID     pgtype.UUID
-	Name               string
-	ProcessingActivity pgtype.Text
-	LegalBasis         pgtype.Text
-	DataCategories     []string
-	Status             pgtype.Text
-	CreatedAt          pgtype.Timestamptz
-	UpdatedAt          pgtype.Timestamptz
+	ID                 pgtype.UUID        `json:"id"`
+	OrganizationID     pgtype.UUID        `json:"organization_id"`
+	Name               string             `json:"name"`
+	ProcessingActivity pgtype.Text        `json:"processing_activity"`
+	LegalBasis         pgtype.Text        `json:"legal_basis"`
+	DataCategories     []string           `json:"data_categories"`
+	Status             pgtype.Text        `json:"status"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
 }
 
 type ScriptRule struct {
-	ID           pgtype.UUID
-	TenantID     pgtype.UUID
-	PurposeID    pgtype.UUID
-	Name         string
-	ScriptDomain string
-	RuleType     string
-	Active       bool
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
+	ID           pgtype.UUID        `json:"id"`
+	TenantID     pgtype.UUID        `json:"tenant_id"`
+	PurposeID    pgtype.UUID        `json:"purpose_id"`
+	Name         string             `json:"name"`
+	ScriptDomain string             `json:"script_domain"`
+	RuleType     string             `json:"rule_type"`
+	Active       bool               `json:"active"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }

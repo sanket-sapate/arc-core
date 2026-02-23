@@ -13,20 +13,21 @@ import (
 
 const createGrievance = `-- name: CreateGrievance :one
 INSERT INTO grievances (
-    id, organization_id, reporter_email, issue_type, description, status, priority, resolution
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, organization_id, reporter_email, issue_type, description, status, priority, resolution, created_at, updated_at
+    id, organization_id, reporter_email, issue_type, description, status, priority, resolution, due_date
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+RETURNING id, organization_id, reporter_email, issue_type, description, status, priority, resolution, created_at, updated_at, due_date
 `
 
 type CreateGrievanceParams struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
-	ReporterEmail  pgtype.Text
-	IssueType      string
-	Description    pgtype.Text
-	Status         pgtype.Text
-	Priority       pgtype.Text
-	Resolution     pgtype.Text
+	ID             pgtype.UUID        `json:"id"`
+	OrganizationID pgtype.UUID        `json:"organization_id"`
+	ReporterEmail  pgtype.Text        `json:"reporter_email"`
+	IssueType      string             `json:"issue_type"`
+	Description    pgtype.Text        `json:"description"`
+	Status         pgtype.Text        `json:"status"`
+	Priority       pgtype.Text        `json:"priority"`
+	Resolution     pgtype.Text        `json:"resolution"`
+	DueDate        pgtype.Timestamptz `json:"due_date"`
 }
 
 func (q *Queries) CreateGrievance(ctx context.Context, arg CreateGrievanceParams) (Grievance, error) {
@@ -39,6 +40,7 @@ func (q *Queries) CreateGrievance(ctx context.Context, arg CreateGrievanceParams
 		arg.Status,
 		arg.Priority,
 		arg.Resolution,
+		arg.DueDate,
 	)
 	var i Grievance
 	err := row.Scan(
@@ -52,18 +54,19 @@ func (q *Queries) CreateGrievance(ctx context.Context, arg CreateGrievanceParams
 		&i.Resolution,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DueDate,
 	)
 	return i, err
 }
 
 const getGrievance = `-- name: GetGrievance :one
-SELECT id, organization_id, reporter_email, issue_type, description, status, priority, resolution, created_at, updated_at FROM grievances
+SELECT id, organization_id, reporter_email, issue_type, description, status, priority, resolution, created_at, updated_at, due_date FROM grievances
 WHERE id = $1 AND organization_id = $2
 `
 
 type GetGrievanceParams struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
+	ID             pgtype.UUID `json:"id"`
+	OrganizationID pgtype.UUID `json:"organization_id"`
 }
 
 func (q *Queries) GetGrievance(ctx context.Context, arg GetGrievanceParams) (Grievance, error) {
@@ -80,12 +83,13 @@ func (q *Queries) GetGrievance(ctx context.Context, arg GetGrievanceParams) (Gri
 		&i.Resolution,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DueDate,
 	)
 	return i, err
 }
 
 const listGrievances = `-- name: ListGrievances :many
-SELECT id, organization_id, reporter_email, issue_type, description, status, priority, resolution, created_at, updated_at FROM grievances
+SELECT id, organization_id, reporter_email, issue_type, description, status, priority, resolution, created_at, updated_at, due_date FROM grievances
 WHERE organization_id = $1
 ORDER BY created_at DESC
 `
@@ -110,6 +114,45 @@ func (q *Queries) ListGrievances(ctx context.Context, organizationID pgtype.UUID
 			&i.Resolution,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.DueDate,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUserGrievances = `-- name: ListUserGrievances :many
+SELECT id, organization_id, reporter_email, issue_type, description, status, priority, resolution, created_at, updated_at, due_date FROM grievances
+WHERE reporter_email = $1
+ORDER BY created_at DESC
+`
+
+func (q *Queries) ListUserGrievances(ctx context.Context, reporterEmail pgtype.Text) ([]Grievance, error) {
+	rows, err := q.db.Query(ctx, listUserGrievances, reporterEmail)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Grievance
+	for rows.Next() {
+		var i Grievance
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrganizationID,
+			&i.ReporterEmail,
+			&i.IssueType,
+			&i.Description,
+			&i.Status,
+			&i.Priority,
+			&i.Resolution,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DueDate,
 		); err != nil {
 			return nil, err
 		}
@@ -125,15 +168,15 @@ const updateGrievance = `-- name: UpdateGrievance :one
 UPDATE grievances
 SET status = $3, resolution = $4, priority = $5, updated_at = NOW()
 WHERE id = $1 AND organization_id = $2
-RETURNING id, organization_id, reporter_email, issue_type, description, status, priority, resolution, created_at, updated_at
+RETURNING id, organization_id, reporter_email, issue_type, description, status, priority, resolution, created_at, updated_at, due_date
 `
 
 type UpdateGrievanceParams struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
-	Status         pgtype.Text
-	Resolution     pgtype.Text
-	Priority       pgtype.Text
+	ID             pgtype.UUID `json:"id"`
+	OrganizationID pgtype.UUID `json:"organization_id"`
+	Status         pgtype.Text `json:"status"`
+	Resolution     pgtype.Text `json:"resolution"`
+	Priority       pgtype.Text `json:"priority"`
 }
 
 func (q *Queries) UpdateGrievance(ctx context.Context, arg UpdateGrievanceParams) (Grievance, error) {
@@ -156,6 +199,7 @@ func (q *Queries) UpdateGrievance(ctx context.Context, arg UpdateGrievanceParams
 		&i.Resolution,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DueDate,
 	)
 	return i, err
 }

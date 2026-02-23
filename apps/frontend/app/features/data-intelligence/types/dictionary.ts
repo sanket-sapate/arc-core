@@ -17,7 +17,7 @@ export type DictionaryItemFormValues = z.infer<typeof dictionaryItemSchema>;
 /** Full API response shape (includes server-generated fields). */
 export interface DictionaryItem extends DictionaryItemFormValues {
     id: string;
-    createdAt?: string;
-    updatedAt?: string;
-    thirdPartyRuleId?: string | null;
+    created_at?: string;
+    updated_at?: string;
+    third_party_rule_id?: string | null;
 }

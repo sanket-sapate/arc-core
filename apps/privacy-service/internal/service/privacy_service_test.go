@@ -284,7 +284,7 @@ func TestPrivacyRequestService_Get_NotFound(t *testing.T) {
 	assert.True(t, errors.Is(err, service.ErrNotFound))
 }
 
-func TestPrivacyRequestService_Resolve_Success(t *testing.T) {
+func TestPrivacyRequestService_Update_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -292,6 +292,15 @@ func TestPrivacyRequestService_Resolve_Success(t *testing.T) {
 	reqIDStr, reqIDPG := newOrgID()
 
 	q := mock.NewMockQuerier(ctrl)
+
+	q.EXPECT().
+		GetPrivacyRequest(gomock.Any(), gomock.Any()).
+		Return(db.PrivacyRequest{
+			ID:             reqIDPG,
+			OrganizationID: orgPG,
+			Status:         pgtype.Text{String: "pending", Valid: true},
+		}, nil).AnyTimes()
+
 	q.EXPECT().
 		UpdatePrivacyRequest(gomock.Any(), gomock.Any()).
 		DoAndReturn(func(_ context.Context, arg db.UpdatePrivacyRequestParams) (db.PrivacyRequest, error) {
@@ -307,16 +316,19 @@ func TestPrivacyRequestService_Resolve_Success(t *testing.T) {
 		})
 
 	svc := service.NewPrivacyRequestService(nil, q)
-	req, err := svc.Resolve(ctxWithOrg(orgStr), reqIDStr, "data deleted")
+	req, err := svc.Update(ctxWithOrg(orgStr), reqIDStr, service.UpdatePrivacyRequestInput{
+		Status:     "resolved",
+		Resolution: "data deleted",
+	})
 
 	require.NoError(t, err)
 	assert.Equal(t, "resolved", req.Status.String)
 	assert.Equal(t, "data deleted", req.Resolution.String)
 }
 
-func TestPrivacyRequestService_Resolve_InvalidID(t *testing.T) {
+func TestPrivacyRequestService_Update_InvalidID(t *testing.T) {
 	svc := service.NewPrivacyRequestService(nil, nil)
-	_, err := svc.Resolve(ctxWithOrg(uuid.New().String()), "bad-id", "resolution")
+	_, err := svc.Update(ctxWithOrg(uuid.New().String()), "bad-id", service.UpdatePrivacyRequestInput{})
 
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, service.ErrInvalidInput))

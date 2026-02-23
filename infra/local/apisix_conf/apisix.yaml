@@ -39,6 +39,11 @@ upstreams:
       "cookie-scanner:8080": 1
     type: roundrobin
 
+  - id: public-api-service-upstream
+    nodes:
+      "public-api-service:8080": 1
+    type: roundrobin
+
 # ── Global Rules ─────────────────────────────────────────────────────────────
 # CORS headers must be present on ALL responses (including error responses from
 # ext-plugin-pre-req) otherwise the browser blocks the response entirely.
@@ -335,6 +340,61 @@ routes:
         conf:
           - name: "authz"
             value: '{"permission_slug": "privacy:delete"}'
+
+  # ─── Portal Routes (User Portal) ───────────────────────────────
+  - id: portal-auth-options
+    uri: /api/portal/auth/*
+    methods: ["OPTIONS"]
+    upstream_id: privacy-service-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "POST,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+
+  - id: portal-auth-routes
+    uri: /api/portal/auth/*
+    methods: ["POST"]
+    upstream_id: privacy-service-upstream
+    plugins:
+      limit-count:
+        count: 50
+        time_window: 60
+        rejected_code: 429
+        key: "remote_addr"
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "POST,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+
+  - id: portal-data-options
+    uri: /api/portal/data/*
+    methods: ["OPTIONS"]
+    upstream_id: privacy-service-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+
+  - id: portal-data-routes
+    uri: /api/portal/data/*
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
+    upstream_id: privacy-service-upstream
+    plugins:
+      limit-count:
+        count: 100
+        time_window: 60
+        rejected_code: 429
+        key: "remote_addr"
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
 
   # ─── Discovery Service Routes (Data Intelligence) ──────────────────
   - id: discovery-domain-read
@@ -801,6 +861,23 @@ routes:
           - name: "authz"
             value: '{"permission_slug": "discovery:read"}'
 
+  # ─── Public SDK Service Routes (no auth) ──────────────────
+  - id: public-sdk-route
+    uri: /v1/sdk/*
+    methods: ["GET", "POST", "OPTIONS"]
+    upstream_id: public-api-service-upstream
+    plugins:
+      limit-count:
+        count: 500
+        time_window: 60
+        rejected_code: 429
+        key: "remote_addr"
+      cors:
+        allow_origins: "*"
+        allow_methods: "GET,POST,OPTIONS"
+        allow_headers: "Content-Type,X-Organization-Id"
+        allow_credential: false
+
   # ─── Discovery: Findings & Mask ──────────────────────────────────
   - id: discovery-findings
     uri: /api/discovery/findings/*
@@ -996,5 +1073,12 @@ routes:
         conf:
           - name: "authz"
             value: '{"permission_slug": "trm:delete"}'
+
+consumers:
+  - username: portal_user
+    plugins:
+      jwt-auth:
+        key: "portal_key"
+        secret: "super_secret_portal_key"
 
 #END

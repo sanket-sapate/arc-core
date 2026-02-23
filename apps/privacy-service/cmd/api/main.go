@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 	"go.uber.org/zap"
 
@@ -95,15 +96,38 @@ func main() {
 		logger.Fatal("NATS stream provisioning failed", zap.Error(err))
 	}
 
+	// --- Redis ---
+	redisURL, ok := secrets["REDIS_URL"].(string)
+	if !ok || redisURL == "" {
+		redisURL = "redis://redis:6379" // fallback if not in Vault
+	}
+	redisOpts, err := redis.ParseURL(redisURL)
+	if err != nil {
+		logger.Fatal("failed to parse REDIS_URL", zap.Error(err))
+	}
+	redisClient := redis.NewClient(redisOpts)
+	defer redisClient.Close()
+	if err := redisClient.Ping(context.Background()).Err(); err != nil {
+		logger.Fatal("Redis connection failed", zap.Error(err))
+	}
+	logger.Info("connected to Redis")
+
 	// --- Repository & Services ---
 	querier := db.New(pool)
-	cookieBannerSvc := service.NewCookieBannerService(pool, querier)
+	cookieBannerSvc := service.NewCookieBannerService(pool, redisClient, querier)
 	purposeSvc := service.NewPurposeService(pool, querier)
 	consentFormSvc := service.NewConsentFormService(pool, querier)
 	dpiaSvc := service.NewDPIAService(pool, querier)
 	ropaSvc := service.NewROPAService(pool, querier)
 	privacyRequestSvc := service.NewPrivacyRequestService(pool, querier)
 	grievanceSvc := service.NewGrievanceService(pool, querier)
+
+	portalJwtSecret, ok := secrets["PORTAL_JWT_SECRET"].(string)
+	if !ok || portalJwtSecret == "" {
+		portalJwtSecret = "super_secret_portal_key"
+	}
+	portalAuthSvc := service.NewPortalAuthService(pool, querier, portalJwtSecret)
+	portalDataSvc := service.NewPortalDataService(pool, querier)
 
 	breachesHandler := handler.NewBreachesHandler(querier)
 	auditLogsHandler := handler.NewAuditLogsHandler(querier)
@@ -148,6 +172,8 @@ func main() {
 	handler.NewROPAHandler(ropaSvc).Register(e)
 	handler.NewPrivacyRequestHandler(privacyRequestSvc).Register(e)
 	handler.NewGrievanceHandler(grievanceSvc).Register(e)
+	handler.NewPortalAuthHandler(portalAuthSvc).Register(e)
+	handler.NewPortalDataHandler(portalDataSvc, privacyRequestSvc, grievanceSvc).Register(e)
 	handler.NewScriptRuleHandler(querier, logger).Register(e)
 	breachesHandler.Register(e)
 	auditLogsHandler.Register(e)
