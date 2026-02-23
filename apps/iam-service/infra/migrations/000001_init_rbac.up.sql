@@ -10,10 +10,17 @@ CREATE TABLE organizations (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE permissions (
+    slug VARCHAR(255) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL DEFAULT ''
+);
+
 CREATE TABLE roles (
     id UUID PRIMARY KEY,
     organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE, -- NULL for system-wide default roles
     name VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (organization_id, name)
 );

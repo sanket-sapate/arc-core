@@ -59,7 +59,11 @@ const mainNav: NavItem[] = [
         title: 'Data Intelligence',
         icon: Search,
         children: [
-            { title: 'Discovery', href: '/data-intelligence/discovery' },
+            { title: 'Dashboard', href: '/data-intelligence/discovery' },
+            { title: 'Cookie Scanner', href: '/data-intelligence/cookie-scanner' },
+            { title: 'Data Sources', href: '/data-intelligence/sources' },
+            { title: 'Scan History', href: '/data-intelligence/jobs' },
+            // { title: 'Profiles & Rules', href: '/data-intelligence/profiles' },
             { title: 'Data Dictionary', href: '/data-intelligence/dictionary' },
         ],
     },
@@ -68,8 +72,9 @@ const mainNav: NavItem[] = [
         icon: Cookie,
         children: [
             { title: 'Cookie Banners', href: '/consent/banners' },
-            { title: 'Consent Forms', href: '/consent/forms' },
             { title: 'Purposes', href: '/consent/purposes' },
+            { title: 'Consent Forms', href: '/consent/forms' },
+            { title: 'Script Blocking', href: '/consent/script-blocking' },
         ],
     },
     {
@@ -88,6 +93,7 @@ const mainNav: NavItem[] = [
         children: [
             { title: 'Vendors', href: '/third-party-risk/vendors' },
             { title: 'Assessments', href: '/third-party-risk/assessments' },
+            { title: 'Frameworks', href: '/third-party-risk/frameworks' },
             { title: 'DPAs', href: '/third-party-risk/dpas' },
         ],
     },
@@ -100,6 +106,7 @@ const adminNav: NavItem[] = [
         children: [
             { title: 'Users & Roles', href: '/admin/access' },
             { title: 'API Keys', href: '/admin/developer' },
+            { title: 'Integrations', href: '/settings/integrations' },
             { title: 'Audit Logs', href: '/admin/audit' },
         ],
     },
@@ -155,7 +162,7 @@ export function AppSidebar() {
                                 <Collapsible
                                     key={item.title}
                                     asChild
-                                    defaultOpen={isGroupActive(item.children!)}
+                                    defaultOpen={true}
                                     className="group/collapsible"
                                 >
                                     <SidebarMenuItem>
@@ -195,7 +202,7 @@ export function AppSidebar() {
                             <Collapsible
                                 key={item.title}
                                 asChild
-                                defaultOpen={isGroupActive(item.children!)}
+                                defaultOpen={true}
                                 className="group/collapsible"
                             >
                                 <SidebarMenuItem>

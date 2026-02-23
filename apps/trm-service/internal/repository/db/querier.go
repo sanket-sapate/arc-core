@@ -11,40 +11,53 @@ import (
 )
 
 type Querier interface {
-	// Vendors
-	CreateVendor(ctx context.Context, arg CreateVendorParams) (Vendor, error)
-	GetVendor(ctx context.Context, arg GetVendorParams) (Vendor, error)
-	ListVendors(ctx context.Context, organizationID pgtype.UUID) ([]Vendor, error)
-	UpdateVendor(ctx context.Context, arg UpdateVendorParams) (Vendor, error)
-	DeleteVendor(ctx context.Context, arg DeleteVendorParams) error
-
-	// Frameworks
-	CreateFramework(ctx context.Context, arg CreateFrameworkParams) (Framework, error)
-	GetFramework(ctx context.Context, arg GetFrameworkParams) (Framework, error)
-	ListFrameworks(ctx context.Context, organizationID pgtype.UUID) ([]Framework, error)
-
-	// Assessments
-	CreateAssessment(ctx context.Context, arg CreateAssessmentParams) (Assessment, error)
-	GetAssessment(ctx context.Context, arg GetAssessmentParams) (Assessment, error)
-	ListAssessmentsByVendor(ctx context.Context, arg ListAssessmentsByVendorParams) ([]Assessment, error)
-	UpdateAssessmentStatus(ctx context.Context, arg UpdateAssessmentStatusParams) (Assessment, error)
-
-	// DPAs
-	CreateDPA(ctx context.Context, arg CreateDPAParams) (Dpa, error)
-	GetDPA(ctx context.Context, arg GetDPAParams) (Dpa, error)
-	ListDPAsByVendor(ctx context.Context, arg ListDPAsByVendorParams) ([]Dpa, error)
-	UpdateDPAStatus(ctx context.Context, arg UpdateDPAStatusParams) (Dpa, error)
 	AddDPADataScope(ctx context.Context, arg AddDPADataScopeParams) error
-	ListDPADataScope(ctx context.Context, dpaID pgtype.UUID) ([]DpaDataScopeRow, error)
-
-	// Replicated Data Dictionary
-	UpsertReplicatedDictionary(ctx context.Context, arg UpsertReplicatedDictionaryParams) error
+	// ── Assessments ───────────────────────────────────────────────────────────
+	CreateAssessment(ctx context.Context, arg CreateAssessmentParams) (Assessment, error)
+	// ── Audit Cycles ──────────────────────────────────────────────────────────
+	CreateAuditCycle(ctx context.Context, arg CreateAuditCycleParams) (AuditCycle, error)
+	// ── DPAs ──────────────────────────────────────────────────────────────────
+	CreateDPA(ctx context.Context, arg CreateDPAParams) (Dpa, error)
+	// ── Frameworks ────────────────────────────────────────────────────────────
+	CreateFramework(ctx context.Context, arg CreateFrameworkParams) (Framework, error)
+	// ── Framework Questions ───────────────────────────────────────────────────
+	CreateFrameworkQuestion(ctx context.Context, arg CreateFrameworkQuestionParams) (FrameworkQuestion, error)
+	// ── Vendors ───────────────────────────────────────────────────────────────
+	CreateVendor(ctx context.Context, arg CreateVendorParams) (Vendor, error)
+	DeleteAuditCycle(ctx context.Context, arg DeleteAuditCycleParams) error
+	DeleteFramework(ctx context.Context, arg DeleteFrameworkParams) error
 	DeleteReplicatedDictionary(ctx context.Context, id pgtype.UUID) error
+	DeleteVendor(ctx context.Context, arg DeleteVendorParams) error
+	GetAssessment(ctx context.Context, arg GetAssessmentParams) (Assessment, error)
+	GetAuditCycle(ctx context.Context, arg GetAuditCycleParams) (AuditCycle, error)
+	GetDPA(ctx context.Context, arg GetDPAParams) (Dpa, error)
+	GetFramework(ctx context.Context, arg GetFrameworkParams) (Framework, error)
 	GetReplicatedDictionaryItem(ctx context.Context, id pgtype.UUID) (ReplicatedDataDictionary, error)
-	ListReplicatedDictionary(ctx context.Context, organizationID pgtype.UUID) ([]ReplicatedDataDictionary, error)
-
-	// Outbox
+	GetVendor(ctx context.Context, arg GetVendorParams) (Vendor, error)
+	// ── Outbox ────────────────────────────────────────────────────────────────
 	InsertOutboxEvent(ctx context.Context, arg InsertOutboxEventParams) error
+	ListAssessmentAnswers(ctx context.Context, assessmentID pgtype.UUID) ([]AssessmentAnswer, error)
+	ListAssessments(ctx context.Context, organizationID pgtype.UUID) ([]Assessment, error)
+	ListAssessmentsByVendor(ctx context.Context, arg ListAssessmentsByVendorParams) ([]Assessment, error)
+	ListAuditCycles(ctx context.Context, organizationID pgtype.UUID) ([]AuditCycle, error)
+	ListDPADataScope(ctx context.Context, dpaID pgtype.UUID) ([]ListDPADataScopeRow, error)
+	ListDPAsByVendor(ctx context.Context, arg ListDPAsByVendorParams) ([]Dpa, error)
+	ListFrameworkQuestions(ctx context.Context, frameworkID pgtype.UUID) ([]FrameworkQuestion, error)
+	ListFrameworks(ctx context.Context, organizationID pgtype.UUID) ([]Framework, error)
+	ListReplicatedDictionary(ctx context.Context, organizationID pgtype.UUID) ([]ReplicatedDataDictionary, error)
+	ListVendors(ctx context.Context, organizationID pgtype.UUID) ([]Vendor, error)
+	// ── Enhanced Assessments ──────────────────────────────────────────────────
+	UpdateAssessmentCycle(ctx context.Context, arg UpdateAssessmentCycleParams) (Assessment, error)
+	UpdateAssessmentStatus(ctx context.Context, arg UpdateAssessmentStatusParams) (Assessment, error)
+	UpdateAuditCycle(ctx context.Context, arg UpdateAuditCycleParams) (AuditCycle, error)
+	UpdateDPAStatus(ctx context.Context, arg UpdateDPAStatusParams) (Dpa, error)
+	// ── Enhanced Frameworks ───────────────────────────────────────────────────
+	UpdateFramework(ctx context.Context, arg UpdateFrameworkParams) (Framework, error)
+	UpdateVendor(ctx context.Context, arg UpdateVendorParams) (Vendor, error)
+	// ── Assessment Answers ────────────────────────────────────────────────────
+	UpsertAssessmentAnswer(ctx context.Context, arg UpsertAssessmentAnswerParams) (AssessmentAnswer, error)
+	// ── Replicated Data Dictionary ────────────────────────────────────────────
+	UpsertReplicatedDictionary(ctx context.Context, arg UpsertReplicatedDictionaryParams) error
 }
 
 var _ Querier = (*Queries)(nil)

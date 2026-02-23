@@ -26,6 +26,7 @@ import (
 	db "github.com/arc-self/apps/abc-service/internal/repository/db"
 	"github.com/arc-self/apps/abc-service/internal/service"
 	"github.com/arc-self/packages/go-core/config"
+	coreMw "github.com/arc-self/packages/go-core/middleware"
 	"github.com/arc-self/packages/go-core/natsclient"
 	"github.com/arc-self/packages/go-core/telemetry"
 )
@@ -113,6 +114,7 @@ func main() {
 	// Propagate X-Internal-* headers from APISIX Go Runner into Go context.
 	// Must run before any handler that calls coreMw.GetUserID / coreMw.GetOrgID.
 	// Fixes FLAW-3.2 — without this, CreateItem/TransitionItemStatus always fail.
+	e.Use(coreMw.NullToEmptyArray())
 	e.Use(handler.InternalContextMiddleware())
 
 	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{

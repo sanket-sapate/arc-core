@@ -36,4 +36,4 @@ infra/prod/vault-init.json
 # Editor/IDE
 # .idea/
 # .vscode/
-old-application
+# old-application

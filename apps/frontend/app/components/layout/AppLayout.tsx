@@ -41,7 +41,7 @@ export default function AppLayout() {
     const { data: userContext, isLoading: isContextLoading } = useQuery({
         queryKey: ['iam-me'],
         queryFn: async () => {
-            const { data } = await api.get<IAMUserResponse>('/api/v1/iam/users/me');
+            const { data } = await api.get<IAMUserResponse>('/api/iam/users/me');
             return data;
         },
         enabled: auth.isAuthenticated && !activeOrganization, // Only fetch if authenticated but Zustand store is empty
@@ -77,23 +77,29 @@ export default function AppLayout() {
         return null; // The useEffect signinRedirect will trigger immediately
     }
 
-    if (!activeOrganization && isContextLoading) {
-        return (
-            <div className="flex h-screen w-full items-center justify-center flex-col gap-4">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground animate-pulse">Loading core workspace...</p>
-            </div>
-        );
-    }
+    // Strict blocker: never render the main app until activeOrganization is set.
+    // This prevents child TanStack Query hooks from firing API calls that require
+    // X-Organization-Id before the tenant context is hydrated.
+    if (!activeOrganization) {
+        // Still loading or query hasn't resolved yet
+        if (isContextLoading || !userContext) {
+            return (
+                <div className="flex h-screen w-full items-center justify-center">
+                    <div className="flex flex-col items-center gap-2">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <p className="text-sm text-muted-foreground">Loading workspace...</p>
+                    </div>
+                </div>
+            );
+        }
 
-    // Edge case if user has no assigned organizations gracefully handle it
-    if (!activeOrganization && !isContextLoading) {
+        // Query resolved but user has no organizations
         return (
             <div className="flex h-screen w-full items-center justify-center flex-col gap-2">
                 <h2 className="text-lg font-semibold text-destructive">No Organizations Found</h2>
                 <p className="text-sm text-muted-foreground">Your account is not assigned to any organizations.</p>
             </div>
-        )
+        );
     }
 
     return (

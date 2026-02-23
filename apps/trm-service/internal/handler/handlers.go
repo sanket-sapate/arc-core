@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/arc-self/apps/trm-service/internal/service"
+	coreMw "github.com/arc-self/packages/go-core/middleware"
 )
 
 // RegisterRoutes mounts all trm-service HTTP endpoints onto the Echo instance.
@@ -15,8 +16,11 @@ func RegisterRoutes(
 	vendorSvc service.VendorService,
 	dpaSvc service.DPAService,
 	assessmentSvc service.AssessmentService,
+	frameworkSvc service.FrameworkService,
+	auditCycleSvc service.AuditCycleService,
 	logger *zap.Logger,
 ) {
+	e.Use(coreMw.NullToEmptyArray())
 	e.Use(InternalContextMiddleware())
 
 	e.GET("/healthz", func(c echo.Context) error {
@@ -48,8 +52,30 @@ func RegisterRoutes(
 
 	// ── Assessments detail ─────────────────────────────────────────────────
 	ag := e.Group("/assessments")
+	ag.GET("", listAssessmentsHandler(assessmentSvc, logger))
 	ag.GET("/:id", getAssessmentHandler(assessmentSvc, logger))
 	ag.PATCH("/:id/status", updateAssessmentStatusHandler(assessmentSvc, logger))
+	ag.PATCH("/:id/cycle", updateAssessmentCycleHandler(assessmentSvc, logger))
+	ag.POST("/:id/answers", upsertAssessmentAnswerHandler(assessmentSvc, logger))
+	ag.GET("/:id/answers", listAssessmentAnswersHandler(assessmentSvc, logger))
+
+	// ── Frameworks ─────────────────────────────────────────────────────────
+	fg := e.Group("/frameworks")
+	fg.POST("", createFrameworkHandler(frameworkSvc, logger))
+	fg.GET("", listFrameworksHandler(frameworkSvc, logger))
+	fg.GET("/:id", getFrameworkHandler(frameworkSvc, logger))
+	fg.PUT("/:id", updateFrameworkHandler(frameworkSvc, logger))
+	fg.DELETE("/:id", deleteFrameworkHandler(frameworkSvc, logger))
+	fg.POST("/:framework_id/questions", createFrameworkQuestionHandler(frameworkSvc, logger))
+	fg.GET("/:framework_id/questions", listFrameworkQuestionsHandler(frameworkSvc, logger))
+
+	// ── Audit Cycles ───────────────────────────────────────────────────────
+	acg := e.Group("/audit-cycles")
+	acg.POST("", createAuditCycleHandler(auditCycleSvc, logger))
+	acg.GET("", listAuditCyclesHandler(auditCycleSvc, logger))
+	acg.GET("/:id", getAuditCycleHandler(auditCycleSvc, logger))
+	acg.PUT("/:id", updateAuditCycleHandler(auditCycleSvc, logger))
+	acg.DELETE("/:id", deleteAuditCycleHandler(auditCycleSvc, logger))
 }
 
 // ── Vendor handlers ────────────────────────────────────────────────────────
@@ -249,6 +275,17 @@ func listAssessmentsByVendorHandler(svc service.AssessmentService, logger *zap.L
 		items, err := svc.ListAssessmentsByVendor(c.Request().Context(), c.Param("vendor_id"))
 		if err != nil {
 			logger.Error("ListAssessmentsByVendor failed", zap.Error(err))
+			return c.JSON(http.StatusInternalServerError, errResp(err.Error()))
+		}
+		return c.JSON(http.StatusOK, items)
+	}
+}
+
+func listAssessmentsHandler(svc service.AssessmentService, logger *zap.Logger) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		items, err := svc.ListAssessments(c.Request().Context())
+		if err != nil {
+			logger.Error("ListAssessments failed", zap.Error(err))
 			return c.JSON(http.StatusInternalServerError, errResp(err.Error()))
 		}
 		return c.JSON(http.StatusOK, items)

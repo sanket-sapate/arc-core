@@ -24,7 +24,48 @@ upstreams:
       "discovery-service:8080": 1
     type: roundrobin
 
+  - id: keycloak-upstream
+    nodes:
+      "keycloak:8080": 1
+    type: roundrobin
+
+  - id: trm-service-upstream
+    nodes:
+      "trm-service:8080": 1
+    type: roundrobin
+
+  - id: cookie-scanner-upstream
+    nodes:
+      "cookie-scanner:8080": 1
+    type: roundrobin
+
+# ── Global Rules ─────────────────────────────────────────────────────────────
+# CORS headers must be present on ALL responses (including error responses from
+# ext-plugin-pre-req) otherwise the browser blocks the response entirely.
+global_rules:
+  - id: 1
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+
 routes:
+  # ─── Keycloak Route ──────────────────────────────────────────────
+  - id: keycloak-route
+    uris:
+      - "/realms/*"
+      - "/resources/*"
+      - "/js/*"
+    upstream_id: keycloak-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+
   # ─── ABC Service Routes (method-scoped for fine-grained authz) ───
   # Fixes FLAW-1.3: the original single route used "item:read" for ALL
   # methods, meaning users with read-only permission could create/mutate/delete.
@@ -132,9 +173,40 @@ routes:
           - name: "authz"
             value: '{"permission_slug": "task:read"}'
 
+  # ─── IAM /users/me Route (any authenticated user, no perm check) ──
+  # This endpoint bootstraps the user's session after login. It must
+  # NOT require iam:manage — every logged-in user needs access.
+  - id: iam-users-me-route
+    uri: /api/iam/users/me
+    methods: ["GET", "OPTIONS"]
+    priority: 20
+    upstream_id: iam-service-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/iam/(.*)", "/$1"]
+
   # ─── IAM Service Routes (admin only) ─────────────────────
+  # OPTIONS preflight route — must bypass authz to allow CORS preflight
+  - id: iam-domain-options
+    uri: /api/iam/*
+    methods: ["OPTIONS"]
+    upstream_id: iam-service-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+
+  # Actual IAM requests — with authz
   - id: iam-domain-route
     uri: /api/iam/*
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"]
     upstream_id: iam-service-upstream
     plugins:
       limit-count:
@@ -148,6 +220,7 @@ routes:
         allow_headers: "Authorization,X-Organization-Id,Content-Type"
         allow_credential: true
       proxy-rewrite:
+        regex_uri: ["^/api/iam/(.*)", "/$1"]
         headers:
           set:
             X-Internal-User-Id: ""
@@ -286,6 +359,10 @@ routes:
             X-Internal-User-Id: ""
             X-Internal-Org-Id: ""
             X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "discovery:read"}'
 
   - id: discovery-domain-write
     uri: /api/discovery/*
@@ -309,6 +386,10 @@ routes:
             X-Internal-User-Id: ""
             X-Internal-Org-Id: ""
             X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "discovery:write"}'
 
   - id: discovery-domain-delete
     uri: /api/discovery/*
@@ -332,5 +413,588 @@ routes:
             X-Internal-User-Id: ""
             X-Internal-Org-Id: ""
             X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "discovery:delete"}'
+
+  # ─── Discovery: Sources (read/write/delete) ────────────────────
+  - id: discovery-sources-read
+    uri: /api/discovery/sources
+    methods: ["GET", "OPTIONS"]
+    upstream_id: discovery-service-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,PATCH,DELETE,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/discovery/sources", "/sources"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "discovery:read"}'
+
+  - id: discovery-sources-write
+    uri: /api/discovery/sources
+    methods: ["POST", "OPTIONS"]
+    upstream_id: discovery-service-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,PATCH,DELETE,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/discovery/sources", "/sources"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "discovery:write"}'
+
+  - id: discovery-sources-item
+    uri: /api/discovery/sources/*
+    methods: ["GET", "PATCH", "DELETE", "POST", "OPTIONS"]
+    upstream_id: discovery-service-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,PATCH,DELETE,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/discovery/sources/(.*)", "/sources/$1"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "discovery:write"}'
+
+  # ─── Discovery: Jobs (read + mutations) ────────────────────────
+  - id: discovery-jobs-list
+    uri: /api/discovery/jobs
+    methods: ["GET", "OPTIONS"]
+    upstream_id: discovery-service-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,DELETE,POST,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/discovery/jobs", "/jobs"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "discovery:read"}'
+
+  - id: discovery-jobs-item
+    uri: /api/discovery/jobs/*
+    methods: ["GET", "POST", "DELETE", "OPTIONS"]
+    upstream_id: discovery-service-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,DELETE,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/discovery/jobs/(.*)", "/jobs/$1"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "discovery:read"}'
+
+  # ─── Discovery: Dashboard ───────────────────────────────────────
+  - id: discovery-dashboard
+    uri: /api/discovery/dashboard
+    methods: ["GET", "OPTIONS"]
+    upstream_id: discovery-service-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/discovery/dashboard", "/dashboard"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "discovery:read"}'
+
+  # ─── Discovery: Scans trigger ───────────────────────────────────
+  - id: discovery-scans-trigger
+    uri: /api/discovery/scans/trigger
+    methods: ["POST", "OPTIONS"]
+    upstream_id: discovery-service-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "POST,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/discovery/scans/trigger", "/scans/trigger"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "discovery:write"}'
+
+  # ─── Discovery: Rules ────────────────────────────────────────────
+  - id: discovery-rules-list
+    uri: /api/discovery/rules
+    methods: ["GET", "POST", "OPTIONS"]
+    upstream_id: discovery-service-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/discovery/rules", "/rules"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "discovery:write"}'
+
+  - id: discovery-rules-item
+    uri: /api/discovery/rules/*
+    methods: ["PUT", "DELETE", "OPTIONS"]
+    upstream_id: discovery-service-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/discovery/rules/(.*)", "/rules/$1"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "discovery:write"}'
+
+  # ─── Discovery: Profiles ─────────────────────────────────────────
+  - id: discovery-profiles-list
+    uri: /api/discovery/profiles
+    methods: ["GET", "POST", "OPTIONS"]
+    upstream_id: discovery-service-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/discovery/profiles", "/profiles"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "discovery:write"}'
+
+  - id: discovery-profiles-item
+    uri: /api/discovery/profiles/*
+    methods: ["GET", "PUT", "DELETE", "POST", "OPTIONS"]
+    upstream_id: discovery-service-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/discovery/profiles/(.*)", "/profiles/$1"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "discovery:write"}'
+
+  # ─── Discovery: Groups ───────────────────────────────────────────
+  - id: discovery-groups
+    uri: /api/discovery/groups/*
+    methods: ["GET", "POST", "DELETE", "OPTIONS"]
+    upstream_id: discovery-service-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,DELETE,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/discovery/groups/(.*)", "/groups/$1"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "discovery:write"}'
+
+  - id: discovery-groups-list
+    uri: /api/discovery/groups
+    methods: ["GET", "POST", "OPTIONS"]
+    upstream_id: discovery-service-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,DELETE,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/discovery/groups", "/groups"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "discovery:write"}'
+
+  # ─── Discovery: Schedules ────────────────────────────────────────
+  - id: discovery-schedules
+    uri: /api/discovery/schedules/*
+    methods: ["GET", "POST", "DELETE", "OPTIONS"]
+    upstream_id: discovery-service-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,DELETE,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/discovery/schedules/(.*)", "/schedules/$1"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "discovery:write"}'
+
+  - id: discovery-schedules-list
+    uri: /api/discovery/schedules
+    methods: ["GET", "POST", "OPTIONS"]
+    upstream_id: discovery-service-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,DELETE,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/discovery/schedules", "/schedules"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "discovery:write"}'
+
+  # ─── Discovery: Agents ───────────────────────────────────────────
+  - id: discovery-agents
+    uri: /api/discovery/agents/*
+    methods: ["GET", "OPTIONS"]
+    upstream_id: discovery-service-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/discovery/agents/(.*)", "/agents/$1"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "discovery:read"}'
+
+  - id: discovery-agents-list
+    uri: /api/discovery/agents
+    methods: ["GET", "OPTIONS"]
+    upstream_id: discovery-service-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/discovery/agents", "/agents"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "discovery:read"}'
+
+  # ─── Discovery: Findings & Mask ──────────────────────────────────
+  - id: discovery-findings
+    uri: /api/discovery/findings/*
+    methods: ["GET", "POST", "OPTIONS"]
+    upstream_id: discovery-service-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/discovery/findings/(.*)", "/findings/$1"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "discovery:write"}'
+
+  - id: discovery-findings-list
+    uri: /api/discovery/findings
+    methods: ["GET", "OPTIONS"]
+    upstream_id: discovery-service-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/discovery/findings", "/findings"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "discovery:read"}'
+
+  - id: discovery-mask
+    uri: /api/discovery/mask
+    methods: ["POST", "OPTIONS"]
+    upstream_id: discovery-service-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "POST,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/discovery/mask", "/mask"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "discovery:write"}'
+
+  # ─── Discovery: Artifacts ────────────────────────────────────────
+  - id: discovery-artifacts
+    uri: /api/discovery/artifacts/*
+    methods: ["GET", "OPTIONS"]
+    upstream_id: discovery-service-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/discovery/artifacts/(.*)", "/artifacts/$1"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "discovery:read"}'
+
+
+  # ─── Cookie Scanner Routes ──────────────────────────────
+  - id: cookie-scanner-api
+    uri: /api/cookie-scanner/*
+    methods: ["GET", "POST", "OPTIONS"]
+    upstream_id: cookie-scanner-upstream
+    plugins:
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/cookie-scanner/(.*)", "/$1"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "discovery:write"}'
+
+  # ─── TRM Service Routes ───────────────────────────────────
+  - id: trm-domain-read
+    uri: /api/trm/*
+    methods: ["GET", "OPTIONS"]
+    upstream_id: trm-service-upstream
+    plugins:
+      limit-count:
+        count: 100
+        time_window: 60
+        rejected_code: 429
+        key: "http_x_organization_id"
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/trm/(.*)", "/$1"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "trm:read"}'
+
+  - id: trm-domain-write
+    uri: /api/trm/*
+    methods: ["POST", "PATCH", "PUT"]
+    upstream_id: trm-service-upstream
+    plugins:
+      limit-count:
+        count: 100
+        time_window: 60
+        rejected_code: 429
+        key: "http_x_organization_id"
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/trm/(.*)", "/$1"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "trm:write"}'
+
+  - id: trm-domain-delete
+    uri: /api/trm/*
+    methods: ["DELETE"]
+    upstream_id: trm-service-upstream
+    plugins:
+      limit-count:
+        count: 100
+        time_window: 60
+        rejected_code: 429
+        key: "http_x_organization_id"
+      cors:
+        allow_origins: "http://localhost:5173"
+        allow_methods: "GET,POST,PUT,DELETE,OPTIONS"
+        allow_headers: "Authorization,X-Organization-Id,Content-Type"
+        allow_credential: true
+      proxy-rewrite:
+        regex_uri: ["^/api/trm/(.*)", "/$1"]
+        headers:
+          set:
+            X-Internal-User-Id: ""
+            X-Internal-Org-Id: ""
+            X-Internal-Permissions: ""
+      ext-plugin-pre-req:
+        conf:
+          - name: "authz"
+            value: '{"permission_slug": "trm:delete"}'
 
 #END

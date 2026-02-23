@@ -4,52 +4,57 @@
 
 package db
 
-import "context"
+import (
+	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
+)
 
 type Querier interface {
-	// Cookie Banners
+	CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) (AuditLog, error)
+	CreateBreach(ctx context.Context, arg CreateBreachParams) (Breach, error)
+	CreateConsentForm(ctx context.Context, arg CreateConsentFormParams) (ConsentForm, error)
 	CreateCookieBanner(ctx context.Context, arg CreateCookieBannerParams) (CookieBanner, error)
+	CreateDPIA(ctx context.Context, arg CreateDPIAParams) (Dpia, error)
+	CreateGrievance(ctx context.Context, arg CreateGrievanceParams) (Grievance, error)
+	CreatePrivacyRequest(ctx context.Context, arg CreatePrivacyRequestParams) (PrivacyRequest, error)
+	CreatePurpose(ctx context.Context, arg CreatePurposeParams) (Purpose, error)
+	CreateROPA(ctx context.Context, arg CreateROPAParams) (Ropa, error)
+	CreateScriptRule(ctx context.Context, arg CreateScriptRuleParams) (ScriptRule, error)
+	DeleteBreach(ctx context.Context, arg DeleteBreachParams) error
+	DeleteCookieBanner(ctx context.Context, arg DeleteCookieBannerParams) error
+	DeleteScriptRule(ctx context.Context, arg DeleteScriptRuleParams) error
+	GetBreachByID(ctx context.Context, arg GetBreachByIDParams) (Breach, error)
+	GetConsentForm(ctx context.Context, arg GetConsentFormParams) (ConsentForm, error)
 	GetCookieBanner(ctx context.Context, arg GetCookieBannerParams) (CookieBanner, error)
 	GetCookieBannerByDomain(ctx context.Context, arg GetCookieBannerByDomainParams) (CookieBanner, error)
-	ListCookieBanners(ctx context.Context, organizationID interface{}) ([]CookieBanner, error)
-	UpdateCookieBanner(ctx context.Context, arg UpdateCookieBannerParams) (CookieBanner, error)
-	DeleteCookieBanner(ctx context.Context, arg DeleteCookieBannerParams) error
-
-	// Purposes
-	CreatePurpose(ctx context.Context, arg CreatePurposeParams) (Purpose, error)
-	GetPurpose(ctx context.Context, arg GetPurposeParams) (Purpose, error)
-	ListPurposes(ctx context.Context, organizationID interface{}) ([]Purpose, error)
-	UpdatePurpose(ctx context.Context, arg UpdatePurposeParams) (Purpose, error)
-
-	// Consent Forms
-	CreateConsentForm(ctx context.Context, arg CreateConsentFormParams) (ConsentForm, error)
-	GetConsentForm(ctx context.Context, arg GetConsentFormParams) (ConsentForm, error)
-	ListConsentForms(ctx context.Context, organizationID interface{}) ([]ConsentForm, error)
-	UpdateConsentForm(ctx context.Context, arg UpdateConsentFormParams) (ConsentForm, error)
-
-	// DPIAs
-	CreateDPIA(ctx context.Context, arg CreateDPIAParams) (Dpia, error)
 	GetDPIA(ctx context.Context, arg GetDPIAParams) (Dpia, error)
-	ListDPIAs(ctx context.Context, organizationID interface{}) ([]Dpia, error)
-	UpdateDPIA(ctx context.Context, arg UpdateDPIAParams) (Dpia, error)
-
-	// ROPAs
-	CreateROPA(ctx context.Context, arg CreateROPAParams) (Ropa, error)
-	GetROPA(ctx context.Context, arg GetROPAParams) (Ropa, error)
-	ListROPAs(ctx context.Context, organizationID interface{}) ([]Ropa, error)
-	UpdateROPA(ctx context.Context, arg UpdateROPAParams) (Ropa, error)
-
-	// Privacy Requests
-	CreatePrivacyRequest(ctx context.Context, arg CreatePrivacyRequestParams) (PrivacyRequest, error)
+	GetGrievance(ctx context.Context, arg GetGrievanceParams) (Grievance, error)
 	GetPrivacyRequest(ctx context.Context, arg GetPrivacyRequestParams) (PrivacyRequest, error)
-	ListPrivacyRequests(ctx context.Context, organizationID interface{}) ([]PrivacyRequest, error)
-	UpdatePrivacyRequest(ctx context.Context, arg UpdatePrivacyRequestParams) (PrivacyRequest, error)
-
-	// Outbox
-	InsertOutboxEvent(ctx context.Context, arg InsertOutboxEventParams) error
-
-	// Cookie Consents (written by the NATS consent consumer)
+	GetPurpose(ctx context.Context, arg GetPurposeParams) (Purpose, error)
+	GetROPA(ctx context.Context, arg GetROPAParams) (Ropa, error)
+	GetScriptRule(ctx context.Context, arg GetScriptRuleParams) (ScriptRule, error)
 	InsertCookieConsent(ctx context.Context, arg InsertCookieConsentParams) error
+	InsertOutboxEvent(ctx context.Context, arg InsertOutboxEventParams) error
+	ListAuditLogs(ctx context.Context, organizationID pgtype.UUID) ([]AuditLog, error)
+	ListBreaches(ctx context.Context, organizationID pgtype.UUID) ([]Breach, error)
+	ListConsentForms(ctx context.Context, organizationID pgtype.UUID) ([]ConsentForm, error)
+	ListCookieBanners(ctx context.Context, organizationID pgtype.UUID) ([]CookieBanner, error)
+	ListDPIAs(ctx context.Context, organizationID pgtype.UUID) ([]Dpia, error)
+	ListGrievances(ctx context.Context, organizationID pgtype.UUID) ([]Grievance, error)
+	ListPrivacyRequests(ctx context.Context, organizationID pgtype.UUID) ([]PrivacyRequest, error)
+	ListPurposes(ctx context.Context, organizationID pgtype.UUID) ([]Purpose, error)
+	ListROPAs(ctx context.Context, organizationID pgtype.UUID) ([]Ropa, error)
+	ListScriptRules(ctx context.Context, tenantID pgtype.UUID) ([]ScriptRule, error)
+	UpdateBreach(ctx context.Context, arg UpdateBreachParams) (Breach, error)
+	UpdateConsentForm(ctx context.Context, arg UpdateConsentFormParams) (ConsentForm, error)
+	UpdateCookieBanner(ctx context.Context, arg UpdateCookieBannerParams) (CookieBanner, error)
+	UpdateDPIA(ctx context.Context, arg UpdateDPIAParams) (Dpia, error)
+	UpdateGrievance(ctx context.Context, arg UpdateGrievanceParams) (Grievance, error)
+	UpdatePrivacyRequest(ctx context.Context, arg UpdatePrivacyRequestParams) (PrivacyRequest, error)
+	UpdatePurpose(ctx context.Context, arg UpdatePurposeParams) (Purpose, error)
+	UpdateROPA(ctx context.Context, arg UpdateROPAParams) (Ropa, error)
+	UpdateScriptRule(ctx context.Context, arg UpdateScriptRuleParams) (ScriptRule, error)
 }
 
 var _ Querier = (*Queries)(nil)

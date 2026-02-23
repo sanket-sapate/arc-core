@@ -8,16 +8,35 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type ApiKey struct {
+	ID             pgtype.UUID
+	OrganizationID pgtype.UUID
+	Name           string
+	KeyPrefix      string
+	KeyHash        string
+	CreatedBy      pgtype.UUID
+	Revoked        bool
+	ExpiresAt      pgtype.Timestamptz
+	CreatedAt      pgtype.Timestamptz
+}
+
 type Organization struct {
 	ID        pgtype.UUID
 	Name      string
 	CreatedAt pgtype.Timestamptz
 }
 
+type Permission struct {
+	Slug        string
+	Name        string
+	Description string
+}
+
 type Role struct {
 	ID             pgtype.UUID
 	OrganizationID pgtype.UUID
 	Name           string
+	Description    string
 	CreatedAt      pgtype.Timestamptz
 }
 
@@ -36,15 +55,4 @@ type UserOrganizationRole struct {
 	UserID         pgtype.UUID
 	OrganizationID pgtype.UUID
 	RoleID         pgtype.UUID
-}
-
-type ApiKey struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
-	KeyValue       string
-	Label          string
-	Scopes         []string
-	ExpiresAt      pgtype.Timestamptz
-	Revoked        bool
-	CreatedAt      pgtype.Timestamptz
 }

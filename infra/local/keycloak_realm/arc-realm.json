@@ -1,5 +1,6 @@
 {
     "realm": "arc",
+    "passwordPolicy": "hashIterations(1)",
     "enabled": true,
     "sslRequired": "none",
     "registrationAllowed": false,
@@ -27,7 +28,22 @@
                 "profile",
                 "email"
             ],
-            "optionalClientScopes": []
+            "optionalClientScopes": [],
+            "protocolMappers": [
+                {
+                    "name": "subject-id",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-usermodel-property-mapper",
+                    "consentRequired": false,
+                    "config": {
+                        "user.attribute": "id",
+                        "id.token.claim": "true",
+                        "access.token.claim": "true",
+                        "claim.name": "sub",
+                        "jsonType.label": "String"
+                    }
+                }
+            ]
         }
     ],
     "users": [

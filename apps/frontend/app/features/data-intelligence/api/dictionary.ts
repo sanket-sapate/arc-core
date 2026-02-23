@@ -40,7 +40,7 @@ async function updateDictionaryItem({
 }
 
 async function deleteDictionaryItem(id: string): Promise<void> {
-    await api.delete(`/api/v1/discovery/dictionary/${id}`);
+    await api.delete(`/api/discovery/dictionary/${id}`);
 }
 
 // ── TanStack Query Hooks ───────────────────────────────────────────────────

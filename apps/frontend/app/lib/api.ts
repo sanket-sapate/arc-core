@@ -20,9 +20,9 @@ api.interceptors.request.use((config) => {
     const { activeOrganization } = useSessionStore.getState();
 
     // Bearer token — derived from oidc-client-ts session storage
-    // Keycloak OIDC client ID is "arc-frontend" by default over "http://localhost:8080/realms/arc"
+    // Keycloak OIDC via APISIX gateway at http://localhost:9080/realms/arc
     if (typeof window !== "undefined") {
-        const authority = import.meta.env.VITE_KEYCLOAK_URL || "http://localhost:8080/realms/arc";
+        const authority = import.meta.env.VITE_KEYCLOAK_URL || "http://localhost:9080/realms/arc";
         const clientId = import.meta.env.VITE_KEYCLOAK_CLIENT_ID || "arc-frontend";
         const storageString = sessionStorage.getItem(`oidc.user:${authority}:${clientId}`);
 
@@ -48,12 +48,27 @@ api.interceptors.request.use((config) => {
 
 // ── Response Interceptor ───────────────────────────────────────────────────
 
+import { userManager } from '~/providers/AuthProvider';
+
+let isRedirecting = false;
+
 api.interceptors.response.use(
     (response) => response,
-    (error) => {
+    async (error) => {
         if (error.response?.status === 401) {
-            // Session expired — clear user and redirect to login.
-            useSessionStore.getState().setUser(null);
+            if (!isRedirecting) {
+                isRedirecting = true;
+                console.warn("Session expired. Redirecting to login...");
+
+                // Clear the Zustand store
+                useSessionStore.getState().setUser(null);
+
+                // Clear the OIDC session state
+                await userManager.removeUser();
+
+                // Trigger Keycloak redirect
+                await userManager.signinRedirect();
+            }
         }
         return Promise.reject(error);
     },
@@ -65,7 +80,10 @@ export const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
             staleTime: 60 * 1000,    // 1 minute
-            retry: 1,
+            retry: (failureCount, error: any) => {
+                if (error?.response?.status === 401 || error?.response?.status === 403) return false;
+                return failureCount < 3;
+            },
             refetchOnWindowFocus: false,
         },
     },

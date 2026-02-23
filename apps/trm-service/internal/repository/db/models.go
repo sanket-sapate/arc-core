@@ -8,25 +8,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-type Vendor struct {
-	ID               pgtype.UUID
-	OrganizationID   pgtype.UUID
-	Name             string
-	ContactEmail     pgtype.Text
-	ComplianceStatus pgtype.Text
-	RiskLevel        pgtype.Text
-	CreatedAt        pgtype.Timestamptz
-	UpdatedAt        pgtype.Timestamptz
-}
-
-type Framework struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
-	Name           string
-	Version        string
-	CreatedAt      pgtype.Timestamptz
-}
-
 type Assessment struct {
 	ID             pgtype.UUID
 	OrganizationID pgtype.UUID
@@ -34,6 +15,28 @@ type Assessment struct {
 	FrameworkID    pgtype.UUID
 	Status         pgtype.Text
 	Score          pgtype.Int4
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+	AuditCycleID   pgtype.UUID
+}
+
+type AssessmentAnswer struct {
+	ID            pgtype.UUID
+	AssessmentID  pgtype.UUID
+	QuestionID    pgtype.UUID
+	AnswerText    pgtype.Text
+	AnswerOptions []byte
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+}
+
+type AuditCycle struct {
+	ID             pgtype.UUID
+	OrganizationID pgtype.UUID
+	Name           string
+	Status         pgtype.Text
+	StartDate      pgtype.Timestamptz
+	EndDate        pgtype.Timestamptz
 	CreatedAt      pgtype.Timestamptz
 	UpdatedAt      pgtype.Timestamptz
 }
@@ -48,20 +51,40 @@ type Dpa struct {
 	UpdatedAt      pgtype.Timestamptz
 }
 
-// DpaDataScope is the raw join record from the dpa_data_scope table.
 type DpaDataScope struct {
-	DpaID        pgtype.UUID
-	DictionaryID pgtype.UUID
+	DpaID         pgtype.UUID
+	DictionaryID  pgtype.UUID
 	Justification pgtype.Text
 }
 
-// DpaDataScopeRow is returned by ListDPADataScope (join with replicated_data_dictionary).
-type DpaDataScopeRow struct {
-	DpaID        pgtype.UUID
-	DictionaryID pgtype.UUID
-	Justification pgtype.Text
-	DictName     string
-	Sensitivity  string
+type Framework struct {
+	ID             pgtype.UUID
+	OrganizationID pgtype.UUID
+	Name           string
+	Version        string
+	CreatedAt      pgtype.Timestamptz
+	Description    pgtype.Text
+	UpdatedAt      pgtype.Timestamptz
+}
+
+type FrameworkQuestion struct {
+	ID           pgtype.UUID
+	FrameworkID  pgtype.UUID
+	QuestionText string
+	QuestionType pgtype.Text
+	Options      []byte
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+}
+
+type OutboxEvent struct {
+	ID             pgtype.UUID
+	OrganizationID pgtype.UUID
+	AggregateType  string
+	AggregateID    string
+	EventType      string
+	Payload        []byte
+	CreatedAt      pgtype.Timestamptz
 }
 
 type ReplicatedDataDictionary struct {
@@ -73,12 +96,13 @@ type ReplicatedDataDictionary struct {
 	UpdatedAt      pgtype.Timestamptz
 }
 
-type OutboxEvent struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
-	AggregateType  string
-	AggregateID    string
-	EventType      string
-	Payload        []byte
-	CreatedAt      pgtype.Timestamptz
+type Vendor struct {
+	ID               pgtype.UUID
+	OrganizationID   pgtype.UUID
+	Name             string
+	ContactEmail     pgtype.Text
+	ComplianceStatus pgtype.Text
+	RiskLevel        pgtype.Text
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
 }

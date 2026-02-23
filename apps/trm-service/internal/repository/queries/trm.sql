@@ -56,6 +56,11 @@ SELECT * FROM assessments
 WHERE vendor_id = $1 AND organization_id = $2
 ORDER BY created_at DESC;
 
+-- name: ListAssessments :many
+SELECT * FROM assessments
+WHERE organization_id = $1
+ORDER BY created_at DESC;
+
 -- name: UpdateAssessmentStatus :one
 UPDATE assessments
 SET status = $3, score = $4, updated_at = NOW()

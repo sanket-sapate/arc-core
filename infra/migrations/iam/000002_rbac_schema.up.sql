@@ -17,6 +17,23 @@ CREATE TABLE organizations (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Step 2.5: Create permissions table
+CREATE TABLE permissions (
+    slug VARCHAR(255) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL DEFAULT ''
+);
+
+INSERT INTO permissions (slug, name, description) VALUES
+('iam:manage', 'Manage IAM', 'Full control over Users, Roles, and Permissions'),
+('trm:read', 'Read Third-Party Risk', 'View Vendors, Assessments, and Frameworks'),
+('trm:write', 'Manage Third-Party Risk', 'Create and edit Vendors and Assessments'),
+('privacy:read', 'Read Privacy', 'View DSRs, DPIAs, ROPAs, and Grievances'),
+('privacy:write', 'Manage Privacy', 'Create and edit Privacy Operations'),
+('settings:read', 'Read Settings', 'View platform settings and API keys'),
+('settings:write', 'Manage Settings', 'Modify platform configuration and generate API keys')
+ON CONFLICT (slug) DO NOTHING;
+
 -- Step 3: Create the roles table, scoped per organization.
 -- The UNIQUE constraint on (organization_id, name) prevents duplicate role names
 -- within the same org and matches the GetDefaultRole query assumption.
@@ -24,6 +41,7 @@ CREATE TABLE roles (
     id              UUID PRIMARY KEY,
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     name            VARCHAR(50) NOT NULL,
+    description     TEXT NOT NULL DEFAULT '',
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (organization_id, name)
 );

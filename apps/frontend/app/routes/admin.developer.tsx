@@ -1,8 +1,13 @@
+import DeveloperSettingsPage from "./settings.developer";
+import { type MetaFunction } from "react-router";
+
+export const meta: MetaFunction = () => {
+    return [
+        { title: "API Keys | ARC Admin" },
+        { name: "description", content: "Manage system-wide programmatic access." },
+    ];
+};
+
 export default function DeveloperPage() {
-    return (
-        <div className="space-y-4">
-            <h2 className="text-2xl font-bold tracking-tight">API Keys</h2>
-            <p className="text-muted-foreground">Create and manage API keys for programmatic access to the platform.</p>
-        </div>
-    );
+    return <DeveloperSettingsPage />;
 }

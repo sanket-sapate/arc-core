@@ -205,7 +205,7 @@ type DPAService interface {
 	ListDPAsByVendor(ctx context.Context, vendorID string) ([]db.Dpa, error)
 	SignDPA(ctx context.Context, id string) (db.Dpa, error)
 	AddDataScope(ctx context.Context, dpaID, dictID, justification string) error
-	ListDataScope(ctx context.Context, dpaID string) ([]db.DpaDataScopeRow, error)
+	ListDataScope(ctx context.Context, dpaID string) ([]db.ListDPADataScopeRow, error)
 }
 
 type CreateDPAInput struct {
@@ -334,7 +334,7 @@ func (s *dpaService) AddDataScope(ctx context.Context, dpaID, dictID, justificat
 	})
 }
 
-func (s *dpaService) ListDataScope(ctx context.Context, dpaID string) ([]db.DpaDataScopeRow, error) {
+func (s *dpaService) ListDataScope(ctx context.Context, dpaID string) ([]db.ListDPADataScopeRow, error) {
 	dID, err := parseUUID(dpaID)
 	if err != nil {
 		return nil, fmt.Errorf("%w: invalid dpa_id", ErrInvalidInput)
@@ -348,7 +348,18 @@ type AssessmentService interface {
 	CreateAssessment(ctx context.Context, p CreateAssessmentInput) (db.Assessment, error)
 	GetAssessment(ctx context.Context, id string) (db.Assessment, error)
 	ListAssessmentsByVendor(ctx context.Context, vendorID string) ([]db.Assessment, error)
+	ListAssessments(ctx context.Context) ([]db.Assessment, error)
 	UpdateStatus(ctx context.Context, id string, status string, score *int32) (db.Assessment, error)
+	UpdateAssessmentCycle(ctx context.Context, id string, auditCycleID string) (db.Assessment, error)
+	UpsertAnswer(ctx context.Context, p UpsertAnswerInput) (db.AssessmentAnswer, error)
+	ListAnswers(ctx context.Context, assessmentID string) ([]db.AssessmentAnswer, error)
+}
+
+type UpsertAnswerInput struct {
+	AssessmentID  string
+	QuestionID    string
+	AnswerText    string
+	AnswerOptions []byte
 }
 
 type CreateAssessmentInput struct {
@@ -427,6 +438,14 @@ func (s *assessmentService) ListAssessmentsByVendor(ctx context.Context, vendorI
 	})
 }
 
+func (s *assessmentService) ListAssessments(ctx context.Context) ([]db.Assessment, error) {
+	orgID, err := mustGetOrgID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.querier.ListAssessments(ctx, orgID)
+}
+
 func (s *assessmentService) UpdateStatus(ctx context.Context, id string, status string, score *int32) (db.Assessment, error) {
 	orgID, err := mustGetOrgID(ctx)
 	if err != nil {
@@ -446,4 +465,53 @@ func (s *assessmentService) UpdateStatus(ctx context.Context, id string, status 
 		Status:         pgtype.Text{String: status, Valid: true},
 		Score:          scoreVal,
 	})
+}
+
+func (s *assessmentService) UpdateAssessmentCycle(ctx context.Context, id string, auditCycleID string) (db.Assessment, error) {
+	orgID, err := mustGetOrgID(ctx)
+	if err != nil {
+		return db.Assessment{}, err
+	}
+	aID, err := parseUUID(id)
+	if err != nil {
+		return db.Assessment{}, fmt.Errorf("%w: invalid id", ErrInvalidInput)
+	}
+	var acID pgtype.UUID
+	if auditCycleID != "" {
+		acID, err = parseUUID(auditCycleID)
+		if err != nil {
+			return db.Assessment{}, fmt.Errorf("%w: invalid audit_cycle_id", ErrInvalidInput)
+		}
+	}
+	return s.querier.UpdateAssessmentCycle(ctx, db.UpdateAssessmentCycleParams{
+		ID:             aID,
+		OrganizationID: orgID,
+		AuditCycleID:   acID,
+	})
+}
+
+func (s *assessmentService) UpsertAnswer(ctx context.Context, p UpsertAnswerInput) (db.AssessmentAnswer, error) {
+	aID, err := parseUUID(p.AssessmentID)
+	if err != nil {
+		return db.AssessmentAnswer{}, fmt.Errorf("%w: invalid assessment_id", ErrInvalidInput)
+	}
+	qID, err := parseUUID(p.QuestionID)
+	if err != nil {
+		return db.AssessmentAnswer{}, fmt.Errorf("%w: invalid question_id", ErrInvalidInput)
+	}
+	return s.querier.UpsertAssessmentAnswer(ctx, db.UpsertAssessmentAnswerParams{
+		ID:            newUUID(),
+		AssessmentID:  aID,
+		QuestionID:    qID,
+		AnswerText:    pgtype.Text{String: p.AnswerText, Valid: p.AnswerText != ""},
+		AnswerOptions: p.AnswerOptions,
+	})
+}
+
+func (s *assessmentService) ListAnswers(ctx context.Context, assessmentID string) ([]db.AssessmentAnswer, error) {
+	aID, err := parseUUID(assessmentID)
+	if err != nil {
+		return nil, fmt.Errorf("%w: invalid assessment_id", ErrInvalidInput)
+	}
+	return s.querier.ListAssessmentAnswers(ctx, aID)
 }

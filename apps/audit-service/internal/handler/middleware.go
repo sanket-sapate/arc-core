@@ -22,6 +22,8 @@ func InternalContextMiddleware() echo.MiddlewareFunc {
 			}
 			if orgID := c.Request().Header.Get("X-Internal-Org-Id"); orgID != "" {
 				ctx = context.WithValue(ctx, coreMw.OrgIDKey, orgID)
+			} else if orgID := c.Request().Header.Get("X-Organization-Id"); orgID != "" {
+				ctx = context.WithValue(ctx, coreMw.OrgIDKey, orgID)
 			}
 			if perms := c.Request().Header.Get("X-Internal-Permissions"); perms != "" {
 				ctx = context.WithValue(ctx, coreMw.PermissionsKey, perms)

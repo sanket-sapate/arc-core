@@ -118,7 +118,7 @@ func main() {
 	}))
 	e.Use(middleware.Recover())
 
-	handler.RegisterRoutes(e, dictionarySvc, scanSvc, logger)
+	handler.RegisterRoutes(e, dictionarySvc, scanSvc, scannerClient, logger)
 
 	go func() {
 		logger.Info("discovery-service HTTP server listening on :8080")

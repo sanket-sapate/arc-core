@@ -35,7 +35,7 @@ services:
   postgres:
     image: postgres:15
     <<: *service-defaults
-    command: ["postgres", "-c", "wal_level=logical", "-c", "max_connections=200"]
+    command: [ "postgres", "-c", "wal_level=logical", "-c", "max_connections=200" ]
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -43,7 +43,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -52,7 +52,7 @@ services:
   nats:
     image: nats:latest
     <<: *service-defaults
-    command: ["-js", "--store_dir=/data/nats", "-m", "8222"]
+    command: [ "-js", "--store_dir=/data/nats", "-m", "8222" ]
     volumes:
       - nats_data:/data/nats
     # No healthcheck — nats:latest has no shell to run probe commands.
@@ -64,7 +64,7 @@ services:
     user: root
     # chown the data dir (Docker named volumes are root-owned by default)
     # then drop to vault user and start the server
-    entrypoint: ["/bin/sh", "-c"]
+    entrypoint: [ "/bin/sh", "-c" ]
     command:
       - |
         chown -R vault:vault /vault/data
@@ -79,7 +79,7 @@ services:
       - IPC_LOCK
     healthcheck:
       # Healthy once the API is responding (sealed or not — init script handles unseal)
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8200/v1/sys/health?uninitcode=200&sealedcode=200 > /dev/null"]
+      test: [ "CMD-SHELL", "wget -qO- http://127.0.0.1:8200/v1/sys/health?uninitcode=200&sealedcode=200 > /dev/null" ]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -91,7 +91,7 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -160,6 +160,15 @@ services:
       VAULT_SECRET_PATH: ${VAULT_SECRET_PATH_PREFIX}/privacy-service
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
 
+  cookie-scanner:
+    <<: *go-service
+    image: arc/cookie-scanner:${IMAGE_TAG:-latest}
+    environment:
+      VAULT_ADDR: ${VAULT_ADDR}
+      VAULT_TOKEN: ${VAULT_ROOT_TOKEN}
+      VAULT_SECRET_PATH: ${VAULT_SECRET_PATH_PREFIX}/cookie-scanner
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+
   cdc-worker:
     <<: *go-service
     image: arc/cdc-worker:${IMAGE_TAG:-latest}
@@ -174,11 +183,15 @@ services:
     image: arc/keycloak:${IMAGE_TAG:-latest}
     <<: *service-defaults
     command: start-dev --import-realm
+    ports:
+      - "8090:8080"
     environment:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       KC_SPI_EVENTS_LISTENER_HTTP_SERVER_URI: http://iam-service:8080/webhooks/keycloak
       KC_SPI_EVENTS_LISTENER_HTTP_SHARED_SECRET: ${WEBHOOK_PSK}
+    volumes:
+      - ../local/keycloak_realm/arc-realm.json:/opt/keycloak/data/import/arc-realm.json:ro
     depends_on:
       - iam-service
 
@@ -193,7 +206,7 @@ services:
   apisix-go-runner:
     image: arc/apisix-go-runner:${IMAGE_TAG:-latest}
     <<: *service-defaults
-    command: ["run"]   # the go-runner binary requires the 'run' subcommand
+    command: [ "run" ] # the go-runner binary requires the 'run' subcommand
     environment:
       APISIX_LISTEN_ADDRESS: unix:/tmp/runner.sock
       REDIS_URL: redis:6379
@@ -210,8 +223,8 @@ services:
     image: apache/apisix:latest
     <<: *service-defaults
     ports:
-      - "80:9080"
-      - "443:9443"
+      - "9080:9080"
+      - "9443:9443"
     volumes:
       - ../local/apisix_conf/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
       - ../local/apisix_conf/config.yaml:/usr/local/apisix/conf/config.yaml:ro

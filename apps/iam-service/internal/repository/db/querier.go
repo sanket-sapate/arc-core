@@ -13,10 +13,26 @@ import (
 type Querier interface {
 	AssignUserRole(ctx context.Context, arg AssignUserRoleParams) error
 	CheckUserPermission(ctx context.Context, arg CheckUserPermissionParams) (bool, error)
+	CreateApiKey(ctx context.Context, arg CreateApiKeyParams) (ApiKey, error)
+	CreateRole(ctx context.Context, arg CreateRoleParams) (CreateRoleRow, error)
+	DeleteRolePermissions(ctx context.Context, roleID pgtype.UUID) error
+	GetApiKeyByHash(ctx context.Context, keyHash string) (GetApiKeyByHashRow, error)
 	GetDefaultRole(ctx context.Context, organizationID pgtype.UUID) (Role, error)
 	GetOrganizationByName(ctx context.Context, name string) (Organization, error)
+	GetRolePermissions(ctx context.Context, roleID pgtype.UUID) ([]string, error)
+	GetUserByID(ctx context.Context, id pgtype.UUID) (User, error)
+	GetUserOrganizations(ctx context.Context, userID pgtype.UUID) ([]GetUserOrganizationsRow, error)
 	GetUserPermissionsInOrg(ctx context.Context, arg GetUserPermissionsInOrgParams) ([]string, error)
+	InsertRolePermission(ctx context.Context, arg InsertRolePermissionParams) error
+	ListApiKeys(ctx context.Context, organizationID pgtype.UUID) ([]ListApiKeysRow, error)
+	ListOrganizationUsers(ctx context.Context, organizationID pgtype.UUID) ([]ListOrganizationUsersRow, error)
+	ListPermissions(ctx context.Context) ([]Permission, error)
+	ListRolesForOrganization(ctx context.Context, organizationID pgtype.UUID) ([]ListRolesForOrganizationRow, error)
+	RemoveUserFromOrganization(ctx context.Context, arg RemoveUserFromOrganizationParams) error
+	RevokeApiKey(ctx context.Context, arg RevokeApiKeyParams) error
 	RevokeExpiredAPIKeys(ctx context.Context) (int64, error)
+	UpdateRole(ctx context.Context, arg UpdateRoleParams) (UpdateRoleRow, error)
+	UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) error
 	UpsertUser(ctx context.Context, arg UpsertUserParams) (User, error)
 }
 

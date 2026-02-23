@@ -101,6 +101,8 @@ func main() {
 	vendorSvc := service.NewVendorService(pool, querier)
 	dpaSvc := service.NewDPAService(pool, querier)
 	assessmentSvc := service.NewAssessmentService(pool, querier)
+	frameworkSvc := service.NewFrameworkService(pool, querier)
+	auditCycleSvc := service.NewAuditCycleService(pool, querier)
 
 	// ── NATS Dictionary Consumer ───────────────────────────────────────────
 	// The consumer runs in its own goroutine managed by a cancellable context.
@@ -130,7 +132,7 @@ func main() {
 	}))
 	e.Use(middleware.Recover())
 
-	handler.RegisterRoutes(e, vendorSvc, dpaSvc, assessmentSvc, logger)
+	handler.RegisterRoutes(e, vendorSvc, dpaSvc, assessmentSvc, frameworkSvc, auditCycleSvc, logger)
 
 	go func() {
 		logger.Info("trm-service HTTP server listening on :8080")

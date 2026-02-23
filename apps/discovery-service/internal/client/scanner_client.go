@@ -10,7 +10,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -36,6 +38,12 @@ type ScannerClient interface {
 	// GetJobFindings fetches a paginated list of PII findings for a completed job.
 	// page is 1-based; returns the findings and whether there are more pages.
 	GetJobFindings(ctx context.Context, tenantID, jobID string, page int) ([]Finding, bool, error)
+
+	// NetworkScan triggers a network discovery scan.
+	NetworkScan(ctx context.Context, tenantID, targetRange string, ports []int) error
+
+	// ProxyRequest allows sending raw requests to the scanner with the proper tenant and auth headers.
+	ProxyRequest(ctx context.Context, tenantID, method, path string, body interface{}) ([]byte, error)
 }
 
 // Finding represents a single PII detection result returned by the third-party API.
@@ -133,8 +141,9 @@ func (c *httpScannerClient) doJSON(req *http.Request, dest interface{}) error {
 // ── CreateRule ────────────────────────────────────────────────────────────
 
 type createRuleRequest struct {
-	Name    string `json:"name"`
-	Pattern string `json:"pattern"`
+	Name     string `json:"name"`
+	Pattern  string `json:"pattern"`
+	Severity string `json:"severity"`
 }
 
 type createRuleResponse struct {
@@ -143,13 +152,21 @@ type createRuleResponse struct {
 
 // CreateRule registers a detection rule and returns the third-party rule_id.
 func (c *httpScannerClient) CreateRule(ctx context.Context, tenantID, name, pattern string) (string, error) {
-	req, err := c.newRequest(ctx, http.MethodPost, "/rules", tenantID, createRuleRequest{
-		Name:    name,
-		Pattern: pattern,
+	path := "/api/v1/admin/rules"
+	if strings.HasSuffix(c.baseURL, "/") {
+		path = "api/v1/admin/rules"
+	}
+
+	req, err := c.newRequest(ctx, http.MethodPost, path, tenantID, createRuleRequest{
+		Name:     name,
+		Pattern:  pattern,
+		Severity: "high",
 	})
 	if err != nil {
 		return "", err
 	}
+
+	log.Printf("Sending CreateRule to: %s", req.URL.String())
 
 	var resp createRuleResponse
 	if err := c.doJSON(req, &resp); err != nil {
@@ -247,4 +264,55 @@ func (c *httpScannerClient) GetJobFindings(ctx context.Context, tenantID, jobID 
 		return nil, false, fmt.Errorf("GetJobFindings: %w", err)
 	}
 	return resp.Findings, resp.HasMore, nil
+}
+
+// ── NetworkScan ───────────────────────────────────────────────────────────
+
+type networkScanRequest struct {
+	TargetRange string `json:"target_range"`
+	Ports       []int  `json:"ports"`
+}
+
+// NetworkScan triggers an immediate network sweep on the third-party scanner.
+func (c *httpScannerClient) NetworkScan(ctx context.Context, tenantID, targetRange string, ports []int) error {
+	req, err := c.newRequest(ctx, http.MethodPost, "/admin/discovery/scan", tenantID, networkScanRequest{
+		TargetRange: targetRange,
+		Ports:       ports,
+	})
+	if err != nil {
+		return err
+	}
+
+	// This endpoint returns 200/202 with no relevant JSON payload that we need,
+	// so we just execute it and disregard the JSON body decoding.
+	if err := c.doJSON(req, nil); err != nil {
+		return fmt.Errorf("NetworkScan: %w", err)
+	}
+	return nil
+}
+
+// ── ProxyRequest ──────────────────────────────────────────────────────────
+
+// ProxyRequest executes a raw HTTP request against the scanner API and returns the raw JSON response body.
+func (c *httpScannerClient) ProxyRequest(ctx context.Context, tenantID, method, path string, body interface{}) ([]byte, error) {
+	req, err := c.newRequest(ctx, method, path, tenantID, body)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("ProxyRequest: http do: %w", err)
+	}
+	defer resp.Body.Close()
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("ProxyRequest: read body: %w", err)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("ProxyRequest: unexpected status %d: %s", resp.StatusCode, string(raw))
+	}
+	return raw, nil
 }

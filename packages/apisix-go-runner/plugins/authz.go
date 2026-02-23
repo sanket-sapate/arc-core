@@ -219,7 +219,7 @@ func (p *Authz) RequestFilter(conf interface{}, w http.ResponseWriter, r pkgHTTP
 	var permissions string
 
 	if iamClient != nil {
-		grpcCtx, cancel := context.WithTimeout(ctx, 50*time.Millisecond)
+		grpcCtx, cancel := context.WithTimeout(ctx, 2000*time.Millisecond)
 		defer cancel()
 
 		resp, err := iamClient.EvaluateAccess(grpcCtx, &pb.EvaluateAccessRequest{

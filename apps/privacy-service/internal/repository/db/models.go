@@ -8,6 +8,41 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AuditLog struct {
+	ID             pgtype.UUID
+	OrganizationID pgtype.UUID
+	Action         string
+	ActorEmail     pgtype.Text
+	TargetEntity   pgtype.Text
+	TargetID       pgtype.Text
+	Timestamp      pgtype.Timestamptz
+}
+
+type Breach struct {
+	ID              pgtype.UUID
+	OrganizationID  pgtype.UUID
+	Title           string
+	Severity        pgtype.Text
+	Status          pgtype.Text
+	IncidentDate    pgtype.Timestamptz
+	Description     pgtype.Text
+	RemediationPlan pgtype.Text
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+}
+
+type ConsentForm struct {
+	ID             pgtype.UUID
+	OrganizationID pgtype.UUID
+	Name           string
+	Description    pgtype.Text
+	Active         pgtype.Bool
+	FormConfig     []byte
+	Purposes       []pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+}
+
 type CookieBanner struct {
 	ID                 pgtype.UUID
 	OrganizationID     pgtype.UUID
@@ -26,27 +61,14 @@ type CookieBanner struct {
 	UpdatedAt          pgtype.Timestamptz
 }
 
-type Purpose struct {
+type CookieConsent struct {
 	ID             pgtype.UUID
 	OrganizationID pgtype.UUID
-	Name           string
-	Description    pgtype.Text
-	LegalBasis     pgtype.Text
-	Active         pgtype.Bool
+	AnonymousID    pgtype.Text
+	Consents       []byte
+	IpAddress      pgtype.Text
+	UserAgent      pgtype.Text
 	CreatedAt      pgtype.Timestamptz
-	UpdatedAt      pgtype.Timestamptz
-}
-
-type ConsentForm struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
-	Name           string
-	Description    pgtype.Text
-	Active         pgtype.Bool
-	FormConfig     []byte
-	Purposes       []pgtype.UUID
-	CreatedAt      pgtype.Timestamptz
-	UpdatedAt      pgtype.Timestamptz
 }
 
 type Dpia struct {
@@ -57,6 +79,54 @@ type Dpia struct {
 	Status         pgtype.Text
 	RiskLevel      pgtype.Text
 	FormData       []byte
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+}
+
+type Grievance struct {
+	ID             pgtype.UUID
+	OrganizationID pgtype.UUID
+	ReporterEmail  pgtype.Text
+	IssueType      string
+	Description    pgtype.Text
+	Status         pgtype.Text
+	Priority       pgtype.Text
+	Resolution     pgtype.Text
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+}
+
+type OutboxEvent struct {
+	ID             pgtype.UUID
+	OrganizationID pgtype.UUID
+	AggregateType  string
+	AggregateID    string
+	EventType      string
+	Payload        []byte
+	CreatedAt      pgtype.Timestamptz
+}
+
+type PrivacyRequest struct {
+	ID             pgtype.UUID
+	OrganizationID pgtype.UUID
+	Type           string
+	Status         pgtype.Text
+	RequesterEmail pgtype.Text
+	RequesterName  pgtype.Text
+	Description    pgtype.Text
+	Resolution     pgtype.Text
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+	DueDate        pgtype.Timestamptz
+}
+
+type Purpose struct {
+	ID             pgtype.UUID
+	OrganizationID pgtype.UUID
+	Name           string
+	Description    pgtype.Text
+	LegalBasis     pgtype.Text
+	Active         pgtype.Bool
 	CreatedAt      pgtype.Timestamptz
 	UpdatedAt      pgtype.Timestamptz
 }
@@ -73,25 +143,14 @@ type Ropa struct {
 	UpdatedAt          pgtype.Timestamptz
 }
 
-type PrivacyRequest struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
-	Type           string
-	Status         pgtype.Text
-	RequesterEmail pgtype.Text
-	RequesterName  pgtype.Text
-	Description    pgtype.Text
-	Resolution     pgtype.Text
-	CreatedAt      pgtype.Timestamptz
-	UpdatedAt      pgtype.Timestamptz
-}
-
-type OutboxEvent struct {
-	ID             pgtype.UUID
-	OrganizationID pgtype.UUID
-	AggregateType  string
-	AggregateID    string
-	EventType      string
-	Payload        []byte
-	CreatedAt      pgtype.Timestamptz
+type ScriptRule struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	PurposeID    pgtype.UUID
+	Name         string
+	ScriptDomain string
+	RuleType     string
+	Active       bool
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
 }

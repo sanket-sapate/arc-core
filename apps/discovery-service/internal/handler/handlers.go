@@ -6,12 +6,15 @@ import (
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
 
+	"github.com/arc-self/apps/discovery-service/internal/client"
 	"github.com/arc-self/apps/discovery-service/internal/service"
+	coreMw "github.com/arc-self/packages/go-core/middleware"
 )
 
 // RegisterRoutes mounts all discovery-service HTTP endpoints onto the Echo instance.
 // This function is called from main.go and kept separate to keep main.go tidy.
-func RegisterRoutes(e *echo.Echo, dict service.DictionaryService, scan service.ScanService, logger *zap.Logger) {
+func RegisterRoutes(e *echo.Echo, dict service.DictionaryService, scan service.ScanService, scanner client.ScannerClient, logger *zap.Logger) {
+	e.Use(coreMw.NullToEmptyArray())
 	e.Use(InternalContextMiddleware())
 
 	// Health probe – used by Kubernetes liveness/readiness checks.
@@ -28,7 +31,21 @@ func RegisterRoutes(e *echo.Echo, dict service.DictionaryService, scan service.S
 	// ── Scan Jobs ──────────────────────────────────────────────────────────
 	sg := e.Group("/scans")
 	sg.POST("", triggerScanHandler(scan, logger))
+	sg.POST("/network", networkScanHandler(scan, logger))
 	sg.GET("/:id", getScanJobHandler(scan, logger))
+
+	// ── Sources Proxy ──────────────────────────────────────────────────────
+	scg := e.Group("/sources")
+	scg.POST("", CreateSourceHandler(scanner, logger))
+	scg.GET("", ListSourcesHandler(scanner, logger))
+
+	// ── Jobs & Findings Proxy ──────────────────────────────────────────────
+	jg := e.Group("/jobs")
+	jg.GET("", ListJobsHandler(scanner, logger))
+	jg.GET("/:job_id/findings", GetJobFindingsProxyHandler(scanner, logger))
+
+	// ── All remaining scanner pass-throughs ────────────────────────────────
+	RegisterProxyRoutes(e, scanner, logger)
 }
 
 // ── Dictionary handlers ────────────────────────────────────────────────────
@@ -123,5 +140,33 @@ func getScanJobHandler(svc service.ScanService, logger *zap.Logger) echo.Handler
 			return c.JSON(http.StatusNotFound, map[string]string{"error": err.Error()})
 		}
 		return c.JSON(http.StatusOK, job)
+	}
+}
+
+type networkScanRequest struct {
+	TargetRange string `json:"target_range"`
+	Ports       []int  `json:"ports"`
+}
+
+func networkScanHandler(svc service.ScanService, logger *zap.Logger) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		var req networkScanRequest
+		if err := c.Bind(&req); err != nil {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		}
+		if req.TargetRange == "" {
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "target_range is required"})
+		}
+
+		err := svc.NetworkScan(c.Request().Context(), service.NetworkScanInput{
+			TargetRange: req.TargetRange,
+			Ports:       req.Ports,
+		})
+		if err != nil {
+			logger.Error("NetworkScan failed", zap.Error(err))
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		}
+		
+		return c.JSON(http.StatusAccepted, map[string]string{"message": "Network discovery scan queued"})
 	}
 }

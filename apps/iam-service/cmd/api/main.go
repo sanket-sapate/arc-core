@@ -175,6 +175,19 @@ func main() {
 	webhookHandler := handler.NewWebhookHandler(syncSvc, logger, webhookPSK)
 	webhookHandler.Register(e)
 
+	// Bind users handler (GET /users/me — session bootstrap)
+	usersHandler := handler.NewUsersHandler(querier, logger)
+	usersHandler.Register(e)
+
+	rolesHandler := handler.NewRolesHandler(pool, querier, logger)
+	rolesHandler.Register(e)
+
+	permissionsHandler := handler.NewPermissionsHandler(querier, logger)
+	permissionsHandler.Register(e)
+
+	apiKeysHandler := handler.NewApiKeysHandler(querier, logger)
+	apiKeysHandler.Register(e)
+
 	// Swagger UI at /swagger/*
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
 

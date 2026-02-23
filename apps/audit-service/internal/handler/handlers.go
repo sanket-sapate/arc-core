@@ -21,6 +21,7 @@ const (
 // RegisterRoutes mounts all audit-service HTTP endpoints.
 // All API routes are read-only — the audit-service never mutates data via HTTP.
 func RegisterRoutes(e *echo.Echo, querier db.Querier, logger *zap.Logger) {
+	e.Use(coreMw.NullToEmptyArray())
 	e.Use(InternalContextMiddleware())
 
 	e.GET("/healthz", func(c echo.Context) error {

@@ -327,7 +327,7 @@ func (h *PrivacyRequestHandler) Register(e *echo.Echo) {
 	g.GET("", h.List)
 	g.POST("", h.Create)
 	g.GET("/:id", h.Get)
-	g.POST("/:id/resolve", h.Resolve)
+	g.PATCH("/:id/status", h.Update)
 }
 
 func (h *PrivacyRequestHandler) Create(c echo.Context) error {
@@ -358,16 +358,68 @@ func (h *PrivacyRequestHandler) List(c echo.Context) error {
 	return c.JSON(http.StatusOK, reqs)
 }
 
-func (h *PrivacyRequestHandler) Resolve(c echo.Context) error {
-	var body struct {
-		Resolution string `json:"resolution"`
-	}
-	if err := c.Bind(&body); err != nil {
+func (h *PrivacyRequestHandler) Update(c echo.Context) error {
+	var input service.UpdatePrivacyRequestInput
+	if err := c.Bind(&input); err != nil {
 		return errResponse(c, http.StatusBadRequest, "invalid request body")
 	}
-	req, err := h.svc.Resolve(c.Request().Context(), c.Param("id"), body.Resolution)
+	req, err := h.svc.Update(c.Request().Context(), c.Param("id"), input)
 	if err != nil {
 		return handleSvcError(c, err)
 	}
 	return c.JSON(http.StatusOK, req)
+}
+
+// ── Grievance Handler ───────────────────────────────────────────────────
+
+type GrievanceHandler struct{ svc service.GrievanceService }
+
+func NewGrievanceHandler(svc service.GrievanceService) *GrievanceHandler { return &GrievanceHandler{svc: svc} }
+
+func (h *GrievanceHandler) Register(e *echo.Echo) {
+	g := e.Group("/api/v1/grievances")
+	g.GET("", h.List)
+	g.POST("", h.Create)
+	g.GET("/:id", h.Get)
+	g.PATCH("/:id/status", h.Update)
+}
+
+func (h *GrievanceHandler) Create(c echo.Context) error {
+	var input service.CreateGrievanceInput
+	if err := c.Bind(&input); err != nil {
+		return errResponse(c, http.StatusBadRequest, "invalid request body")
+	}
+	r, err := h.svc.Create(c.Request().Context(), input)
+	if err != nil {
+		return handleSvcError(c, err)
+	}
+	return c.JSON(http.StatusCreated, r)
+}
+
+func (h *GrievanceHandler) Get(c echo.Context) error {
+	r, err := h.svc.Get(c.Request().Context(), c.Param("id"))
+	if err != nil {
+		return handleSvcError(c, err)
+	}
+	return c.JSON(http.StatusOK, r)
+}
+
+func (h *GrievanceHandler) List(c echo.Context) error {
+	rs, err := h.svc.List(c.Request().Context())
+	if err != nil {
+		return handleSvcError(c, err)
+	}
+	return c.JSON(http.StatusOK, rs)
+}
+
+func (h *GrievanceHandler) Update(c echo.Context) error {
+	var input service.UpdateGrievanceInput
+	if err := c.Bind(&input); err != nil {
+		return errResponse(c, http.StatusBadRequest, "invalid request body")
+	}
+	r, err := h.svc.Update(c.Request().Context(), c.Param("id"), input)
+	if err != nil {
+		return handleSvcError(c, err)
+	}
+	return c.JSON(http.StatusOK, r)
 }

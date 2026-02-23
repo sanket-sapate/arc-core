@@ -228,12 +228,21 @@ type ScanService interface {
 
 	// GetScanJob returns the current state of a scan job.
 	GetScanJob(ctx context.Context, id string) (db.ScanJob, error)
+
+	// NetworkScan triggers an immediate network sweep.
+	NetworkScan(ctx context.Context, params NetworkScanInput) error
 }
 
 // TriggerScanInput carries the caller-supplied fields for a new scan job.
 type TriggerScanInput struct {
 	SourceID   string // ID of the data source to scan (passed to scanner API)
 	SourceName string // Human-readable label stored locally
+}
+
+// NetworkScanInput carries the input for a network IP/port scan.
+type NetworkScanInput struct {
+	TargetRange string
+	Ports       []int
 }
 
 type scanService struct {
@@ -299,4 +308,23 @@ func (s *scanService) GetScanJob(ctx context.Context, id string) (db.ScanJob, er
 		return db.ScanJob{}, fmt.Errorf("%w: scan job", ErrNotFound)
 	}
 	return job, nil
+}
+
+// NetworkScan passes the network scan parameters to the third-party scanner client.
+func (s *scanService) NetworkScan(ctx context.Context, params NetworkScanInput) error {
+	if params.TargetRange == "" {
+		return fmt.Errorf("%w: target_range is required", ErrInvalidInput)
+	}
+
+	tenantIDStr, _, _ := func() (string, bool, error) {
+		tid, ok := coreMw.GetOrgID(ctx)
+		return tid, ok, nil
+	}()
+
+	err := s.scanner.NetworkScan(ctx, tenantIDStr, params.TargetRange, params.Ports)
+	if err != nil {
+		return fmt.Errorf("scanner.NetworkScan: %w", err)
+	}
+
+	return nil
 }

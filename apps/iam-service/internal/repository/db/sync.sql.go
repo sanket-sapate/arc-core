@@ -29,7 +29,7 @@ func (q *Queries) AssignUserRole(ctx context.Context, arg AssignUserRoleParams) 
 }
 
 const getDefaultRole = `-- name: GetDefaultRole :one
-SELECT id, organization_id, name, created_at FROM roles
+SELECT id, organization_id, name, description, created_at FROM roles
 WHERE organization_id = $1 AND name = 'member'
 `
 
@@ -40,6 +40,7 @@ func (q *Queries) GetDefaultRole(ctx context.Context, organizationID pgtype.UUID
 		&i.ID,
 		&i.OrganizationID,
 		&i.Name,
+		&i.Description,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -57,9 +58,6 @@ func (q *Queries) GetOrganizationByName(ctx context.Context, name string) (Organ
 	return i, err
 }
 
-// upsertUser — ON CONFLICT DO UPDATE guarantees a row is always returned,
-// eliminating the pgx.ErrNoRows path that previously caused Keycloak retry
-// loops on repeated REGISTER events for the same user ID (FLAW-4.2).
 const upsertUser = `-- name: UpsertUser :one
 INSERT INTO users (id, email)
 VALUES ($1, $2)

@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -211,7 +213,7 @@ type PrivacyRequestService interface {
 	Create(ctx context.Context, p CreatePrivacyRequestInput) (db.PrivacyRequest, error)
 	Get(ctx context.Context, id string) (db.PrivacyRequest, error)
 	List(ctx context.Context) ([]db.PrivacyRequest, error)
-	Resolve(ctx context.Context, id, resolution string) (db.PrivacyRequest, error)
+	Update(ctx context.Context, id string, p UpdatePrivacyRequestInput) (db.PrivacyRequest, error)
 }
 
 type CreatePrivacyRequestInput struct {
@@ -219,6 +221,12 @@ type CreatePrivacyRequestInput struct {
 	RequesterEmail string
 	RequesterName  string
 	Description    string
+}
+
+type UpdatePrivacyRequestInput struct {
+	Status     string
+	Resolution string
+	DueDate    *time.Time
 }
 
 type privacyRequestService struct {
@@ -245,12 +253,15 @@ func (s *privacyRequestService) Create(ctx context.Context, p CreatePrivacyReque
 	defer tx.Rollback(ctx)
 	qtx := db.New(tx)
 
+	dueDate := pgtype.Timestamptz{Time: time.Now().AddDate(0, 0, 30), Valid: true}
+
 	req, err := qtx.CreatePrivacyRequest(ctx, db.CreatePrivacyRequestParams{
 		ID: newUUID(), OrganizationID: orgID, Type: p.Type,
 		Status:         pgtype.Text{String: "pending", Valid: true},
 		RequesterEmail: pgtype.Text{String: p.RequesterEmail, Valid: p.RequesterEmail != ""},
 		RequesterName:  pgtype.Text{String: p.RequesterName, Valid: p.RequesterName != ""},
 		Description:    pgtype.Text{String: p.Description, Valid: p.Description != ""},
+		DueDate:        dueDate,
 	})
 	if err != nil {
 		return db.PrivacyRequest{}, fmt.Errorf("create privacy request: %w", err)
@@ -293,7 +304,7 @@ func (s *privacyRequestService) List(ctx context.Context) ([]db.PrivacyRequest, 
 	return s.querier.ListPrivacyRequests(ctx, orgID)
 }
 
-func (s *privacyRequestService) Resolve(ctx context.Context, id, resolution string) (db.PrivacyRequest, error) {
+func (s *privacyRequestService) Update(ctx context.Context, id string, p UpdatePrivacyRequestInput) (db.PrivacyRequest, error) {
 	orgID, err := mustGetOrgID(ctx)
 	if err != nil {
 		return db.PrivacyRequest{}, err
@@ -302,11 +313,24 @@ func (s *privacyRequestService) Resolve(ctx context.Context, id, resolution stri
 	if err != nil {
 		return db.PrivacyRequest{}, fmt.Errorf("%w: invalid id", ErrInvalidInput)
 	}
+	dueDate := pgtype.Timestamptz{}
+	if p.DueDate != nil {
+		dueDate = pgtype.Timestamptz{Time: *p.DueDate, Valid: true}
+	} else {
+		// Retain existing due_date if not specified
+		// Let's fetch the existing request to retain due_date
+		existing, err := s.querier.GetPrivacyRequest(ctx, db.GetPrivacyRequestParams{ID: reqID, OrganizationID: orgID})
+		if err == nil {
+			dueDate = existing.DueDate
+		}
+	}
+
 	return s.querier.UpdatePrivacyRequest(ctx, db.UpdatePrivacyRequestParams{
 		ID:             reqID,
 		OrganizationID: orgID,
-		Status:         pgtype.Text{String: "resolved", Valid: true},
-		Resolution:     pgtype.Text{String: resolution, Valid: resolution != ""},
+		Status:         pgtype.Text{String: p.Status, Valid: p.Status != ""},
+		Resolution:     pgtype.Text{String: p.Resolution, Valid: p.Resolution != ""},
+		DueDate:        dueDate,
 	})
 }
 
@@ -742,3 +766,101 @@ func parsePurposeIDs(ids []string) ([]pgtype.UUID, error) {
 	}
 	return out, nil
 }
+
+// ── Grievance Service ─────────────────────────────────────────────────────
+
+type GrievanceService interface {
+	Create(ctx context.Context, p CreateGrievanceInput) (db.Grievance, error)
+	Get(ctx context.Context, id string) (db.Grievance, error)
+	List(ctx context.Context) ([]db.Grievance, error)
+	Update(ctx context.Context, id string, p UpdateGrievanceInput) (db.Grievance, error)
+}
+
+type CreateGrievanceInput struct {
+	ReporterEmail string
+	IssueType     string
+	Description   string
+	Priority      string
+}
+
+type UpdateGrievanceInput struct {
+	Status     string
+	Resolution string
+	Priority   string
+}
+
+type grievanceService struct {
+	pool    *pgxpool.Pool
+	querier db.Querier
+}
+
+func NewGrievanceService(pool *pgxpool.Pool, q db.Querier) GrievanceService {
+	return &grievanceService{pool: pool, querier: q}
+}
+
+func (s *grievanceService) Create(ctx context.Context, p CreateGrievanceInput) (db.Grievance, error) {
+	if p.IssueType == "" {
+		return db.Grievance{}, fmt.Errorf("%w: issue_type is required", ErrInvalidInput)
+	}
+	orgID, err := mustGetOrgID(ctx)
+	if err != nil {
+		return db.Grievance{}, err
+	}
+	priority := p.Priority
+	if priority == "" {
+		priority = "medium"
+	}
+
+	return s.querier.CreateGrievance(ctx, db.CreateGrievanceParams{
+		ID:             newUUID(),
+		OrganizationID: orgID,
+		ReporterEmail:  pgtype.Text{String: p.ReporterEmail, Valid: p.ReporterEmail != ""},
+		IssueType:      p.IssueType,
+		Description:    pgtype.Text{String: p.Description, Valid: p.Description != ""},
+		Status:         pgtype.Text{String: "open", Valid: true},
+		Priority:       pgtype.Text{String: priority, Valid: true},
+	})
+}
+
+func (s *grievanceService) Get(ctx context.Context, id string) (db.Grievance, error) {
+	orgID, err := mustGetOrgID(ctx)
+	if err != nil {
+		return db.Grievance{}, err
+	}
+	gID, err := parseUUID(id)
+	if err != nil {
+		return db.Grievance{}, fmt.Errorf("%w: invalid id", ErrInvalidInput)
+	}
+	g, err := s.querier.GetGrievance(ctx, db.GetGrievanceParams{ID: gID, OrganizationID: orgID})
+	if err != nil {
+		return db.Grievance{}, fmt.Errorf("%w: grievance", ErrNotFound)
+	}
+	return g, nil
+}
+
+func (s *grievanceService) List(ctx context.Context) ([]db.Grievance, error) {
+	orgID, err := mustGetOrgID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.querier.ListGrievances(ctx, orgID)
+}
+
+func (s *grievanceService) Update(ctx context.Context, id string, p UpdateGrievanceInput) (db.Grievance, error) {
+	orgID, err := mustGetOrgID(ctx)
+	if err != nil {
+		return db.Grievance{}, err
+	}
+	gID, err := parseUUID(id)
+	if err != nil {
+		return db.Grievance{}, fmt.Errorf("%w: invalid id", ErrInvalidInput)
+	}
+	return s.querier.UpdateGrievance(ctx, db.UpdateGrievanceParams{
+		ID:             gID,
+		OrganizationID: orgID,
+		Status:         pgtype.Text{String: p.Status, Valid: p.Status != ""},
+		Resolution:     pgtype.Text{String: p.Resolution, Valid: p.Resolution != ""},
+		Priority:       pgtype.Text{String: p.Priority, Valid: p.Priority != ""},
+	})
+}
+

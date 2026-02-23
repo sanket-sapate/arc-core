@@ -11,11 +11,10 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-// DBTX is satisfied by *pgxpool.Pool, *pgxpool.Conn, pgx.Tx, and *pgx.Conn.
 type DBTX interface {
-	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
-	Query(context.Context, string, ...any) (pgx.Rows, error)
-	QueryRow(context.Context, string, ...any) pgx.Row
+	Exec(context.Context, string, ...interface{}) (pgconn.CommandTag, error)
+	Query(context.Context, string, ...interface{}) (pgx.Rows, error)
+	QueryRow(context.Context, string, ...interface{}) pgx.Row
 }
 
 func New(db DBTX) *Queries {
@@ -26,6 +25,8 @@ type Queries struct {
 	db DBTX
 }
 
-func (q *Queries) WithTx(tx DBTX) *Queries {
-	return &Queries{db: tx}
+func (q *Queries) WithTx(tx pgx.Tx) *Queries {
+	return &Queries{
+		db: tx,
+	}
 }

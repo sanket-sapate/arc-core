@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS outbox_events (
 );" 2>&1 | grep -v "already exists" | grep -v "^$" | grep -v "^NOTICE" || true
 
 # Apply each service's up-migrations in dependency order
-for svc in abc iam audit-service privacy-service discovery-service trm-service; do
+for svc in abc iam audit-service privacy-service discovery-service trm-service cookie-scanner; do
   dir="/migrations/${svc}"
   if [ ! -d "${dir}" ]; then
     echo "  ! skipping ${svc} (no migrations directory)"

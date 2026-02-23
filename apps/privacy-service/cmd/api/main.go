@@ -25,6 +25,7 @@ import (
 	db "github.com/arc-self/apps/privacy-service/internal/repository/db"
 	"github.com/arc-self/apps/privacy-service/internal/service"
 	"github.com/arc-self/packages/go-core/config"
+	coreMw "github.com/arc-self/packages/go-core/middleware"
 	"github.com/arc-self/packages/go-core/natsclient"
 	"github.com/arc-self/packages/go-core/telemetry"
 )
@@ -102,6 +103,10 @@ func main() {
 	dpiaSvc := service.NewDPIAService(pool, querier)
 	ropaSvc := service.NewROPAService(pool, querier)
 	privacyRequestSvc := service.NewPrivacyRequestService(pool, querier)
+	grievanceSvc := service.NewGrievanceService(pool, querier)
+
+	breachesHandler := handler.NewBreachesHandler(querier)
+	auditLogsHandler := handler.NewAuditLogsHandler(querier)
 
 	// --- NATS Consumers ---
 	// Both consumers share a cancellable context so they shut down
@@ -121,6 +126,7 @@ func main() {
 	e := echo.New()
 	e.HideBanner = true
 	e.Use(otelecho.Middleware("privacy-service"))
+	e.Use(coreMw.NullToEmptyArray())
 	e.Use(handler.InternalContextMiddleware())
 	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
 		LogURI:    true,
@@ -141,6 +147,10 @@ func main() {
 	handler.NewDPIAHandler(dpiaSvc).Register(e)
 	handler.NewROPAHandler(ropaSvc).Register(e)
 	handler.NewPrivacyRequestHandler(privacyRequestSvc).Register(e)
+	handler.NewGrievanceHandler(grievanceSvc).Register(e)
+	handler.NewScriptRuleHandler(querier, logger).Register(e)
+	breachesHandler.Register(e)
+	auditLogsHandler.Register(e)
 
 	go func() {
 		logger.Info("privacy-service HTTP server listening on :8080")

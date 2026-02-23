@@ -299,7 +299,8 @@ prod-up:
 	@echo ""
 	@echo "═══════════════════════════════════════════════════"
 	@echo "  ✓  Arc production stack is up!"
-	@echo "  Gateway: http://<your-server-ip>:80"
+	@echo "  Gateway: http://<your-server-ip>:9080"
+	@echo "  Keycloak: http://<your-server-ip>:8090"
 	@echo "═══════════════════════════════════════════════════"
 
 
