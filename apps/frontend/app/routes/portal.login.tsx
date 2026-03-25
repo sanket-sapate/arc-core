@@ -17,15 +17,15 @@ export default function PortalLogin() {
     };
 
     return (
-        <div className="min-h-screen flex flex-col bg-slate-50">
+        <div className="min-h-screen flex flex-col bg-background">
             <Header />
             <main className="flex-1 flex w-full">
                 {/* Left Side: Branding / Info */}
-                <div className="hidden lg:flex w-1/2 bg-indigo-900 text-white p-12 flex-col justify-center relative overflow-hidden">
+                <div className="hidden lg:flex w-1/2 bg-brand-900 text-white p-12 flex-col justify-center relative overflow-hidden">
                     {/* Background graphics */}
                     <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-                        <div className="absolute -top-24 -left-24 w-96 h-96 bg-indigo-500 rounded-full blur-3xl" />
-                        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-indigo-600 rounded-full blur-3xl opacity-50" />
+                        <div className="absolute -top-24 -left-24 w-96 h-96 bg-brand-500 rounded-full blur-3xl" />
+                        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-brand-600 rounded-full blur-3xl opacity-50" />
                     </div>
 
                     <div className="relative z-10 max-w-lg mx-auto space-y-8">
@@ -45,16 +45,16 @@ export default function PortalLogin() {
 
                 {/* Right Side: Form */}
                 <div className="w-full lg:w-1/2 flex items-center justify-center p-8 lg:p-12">
-                    <div className="max-w-md w-full p-8 bg-white border border-slate-100 rounded-2xl shadow-xl space-y-8 relative z-10">
+                    <div className="max-w-md w-full p-8 bg-card border rounded-2xl shadow-xl space-y-8 relative z-10">
                         <div className="text-center space-y-3">
-                            <h2 className="text-3xl font-bold tracking-tight text-slate-900">Sign In</h2>
-                            <p className="text-slate-500 leading-relaxed">
+                            <h2 className="text-3xl font-bold tracking-tight text-foreground">Sign In</h2>
+                            <p className="text-muted-foreground leading-relaxed">
                                 Enter your email address below to receive a secure, one-time magic link. No passwords required.
                             </p>
                         </div>
 
                         {isSuccess ? (
-                            <div className="p-6 bg-green-50 text-green-800 rounded-xl border border-green-200 flex flex-col items-center text-center space-y-4 slide-in-from-bottom-2 animate-in fade-in">
+                            <div className="p-6 bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200 rounded-xl border border-green-200 dark:border-green-800 flex flex-col items-center text-center space-y-4 slide-in-from-bottom-2 animate-in fade-in">
                                 <div className="p-3 bg-green-100 rounded-full">
                                     <MailCheck className="w-8 h-8 text-green-600" />
                                 </div>
@@ -75,12 +75,12 @@ export default function PortalLogin() {
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
                                         disabled={isPending}
-                                        className="w-full h-12 px-4 text-base rounded-xl border-slate-200 shadow-sm focus-visible:ring-indigo-500"
+                                        className="w-full h-12 px-4 text-base rounded-xl border shadow-sm focus-visible:ring-ring placeholder:text-muted-foreground"
                                     />
                                 </div>
 
                                 {isError && (
-                                    <div className="text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-100 font-medium text-center">
+                                    <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-lg border border-destructive/20 font-medium text-center">
                                         {(error as any)?.response?.data?.error || "Failed to request link. Please try again."}
                                     </div>
                                 )}
@@ -92,7 +92,7 @@ export default function PortalLogin() {
                                 >
                                     {isPending ? "Sending Secure Link..." : "Send Magic Link"}
                                 </Button>
-                                <p className="text-center text-xs text-slate-400 mt-6">
+                                <p className="text-center text-xs text-muted-foreground mt-6">
                                     By signing in, you agree to our Terms of Service and Privacy Policy.
                                 </p>
                             </form>

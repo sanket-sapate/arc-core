@@ -202,7 +202,9 @@ func (s *vendorService) DeleteVendor(ctx context.Context, id string) error {
 type DPAService interface {
 	CreateDPA(ctx context.Context, p CreateDPAInput) (db.Dpa, error)
 	GetDPA(ctx context.Context, id string) (db.Dpa, error)
+	ListDPAs(ctx context.Context) ([]db.Dpa, error)
 	ListDPAsByVendor(ctx context.Context, vendorID string) ([]db.Dpa, error)
+	DeleteDPA(ctx context.Context, id string) error
 	SignDPA(ctx context.Context, id string) (db.Dpa, error)
 	AddDataScope(ctx context.Context, dpaID, dictID, justification string) error
 	ListDataScope(ctx context.Context, dpaID string) ([]db.ListDPADataScopeRow, error)
@@ -285,6 +287,14 @@ func (s *dpaService) GetDPA(ctx context.Context, id string) (db.Dpa, error) {
 	return dpa, nil
 }
 
+func (s *dpaService) ListDPAs(ctx context.Context) ([]db.Dpa, error) {
+	orgID, err := mustGetOrgID(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.querier.ListDPAs(ctx, orgID)
+}
+
 func (s *dpaService) ListDPAsByVendor(ctx context.Context, vendorID string) ([]db.Dpa, error) {
 	orgID, err := mustGetOrgID(ctx)
 	if err != nil {
@@ -295,6 +305,18 @@ func (s *dpaService) ListDPAsByVendor(ctx context.Context, vendorID string) ([]d
 		return nil, fmt.Errorf("%w: invalid vendor_id", ErrInvalidInput)
 	}
 	return s.querier.ListDPAsByVendor(ctx, db.ListDPAsByVendorParams{VendorID: vid, OrganizationID: orgID})
+}
+
+func (s *dpaService) DeleteDPA(ctx context.Context, id string) error {
+	orgID, err := mustGetOrgID(ctx)
+	if err != nil {
+		return err
+	}
+	dpaID, err := parseUUID(id)
+	if err != nil {
+		return fmt.Errorf("%w: invalid id", ErrInvalidInput)
+	}
+	return s.querier.DeleteDPA(ctx, db.DeleteDPAParams{ID: dpaID, OrganizationID: orgID})
 }
 
 func (s *dpaService) SignDPA(ctx context.Context, id string) (db.Dpa, error) {

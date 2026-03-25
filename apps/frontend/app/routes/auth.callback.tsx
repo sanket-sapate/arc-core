@@ -11,7 +11,7 @@ export default function AuthCallback() {
         // Once Keycloak successfully redirects back and oidc-client finishes processing the code,
         // auth.isAuthenticated will become true.
         if (auth.isAuthenticated) {
-            navigate('/', { replace: true });
+            navigate('/app', { replace: true });
         }
     }, [auth.isAuthenticated, navigate]);
 

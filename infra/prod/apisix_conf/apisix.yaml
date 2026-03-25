@@ -1,0 +1,2186 @@
+upstreams:
+- id: abc-service-upstream
+  nodes:
+    abc-service:8080: 1
+  type: roundrobin
+- id: def-service-upstream
+  nodes:
+    def-service:8080: 1
+  type: roundrobin
+- id: iam-service-upstream
+  nodes:
+    iam-service:8080: 1
+  type: roundrobin
+- id: privacy-service-upstream
+  nodes:
+    privacy-service:8080: 1
+  type: roundrobin
+- id: discovery-service-upstream
+  nodes:
+    discovery-service:8080: 1
+  type: roundrobin
+- id: keycloak-upstream
+  nodes:
+    keycloak:8080: 1
+  type: roundrobin
+- id: trm-service-upstream
+  nodes:
+    trm-service:8080: 1
+  type: roundrobin
+- id: cookie-scanner-upstream
+  nodes:
+    cookie-scanner:8080: 1
+  type: roundrobin
+- id: public-api-service-upstream
+  nodes:
+    public-api-service:8080: 1
+  type: roundrobin
+- id: frontend-upstream
+  nodes:
+    frontend:80: 1
+  type: roundrobin
+routes:
+- id: keycloak-route
+  uris:
+  - /realms/*
+  - /resources/*
+  - /js/*
+  upstream_id: keycloak-upstream
+  plugins:
+    proxy-rewrite:
+      headers:
+        set:
+          Host: api.demo.arcompli.com
+          X-Real-IP: $remote_addr
+          X-Forwarded-For: $remote_addr
+          X-Forwarded-Proto: https
+          X-Forwarded-Port: '443'
+          X-Forwarded-Host: api.demo.arcompli.com
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+- id: iam-users-me-route
+  uri: /api/iam/users/me
+  methods:
+  - GET
+  - OPTIONS
+  priority: 20
+  upstream_id: iam-service-upstream
+  plugins:
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+- id: iam-domain-options
+  uri: /api/iam/*
+  methods:
+  - OPTIONS
+  upstream_id: iam-service-upstream
+  plugins:
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+- id: abc-domain-options
+  uri: /api/abc/*
+  methods:
+  - OPTIONS
+  priority: 10
+  upstream_id: abc-service-upstream
+  plugins:
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true, ['http://localhost:3000']=true }; local origin
+        = ngx.var.http_origin; if origin and allowed[origin] then ngx.header['Access-Control-Allow-Origin']
+        = origin; ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: privacy-domain-options
+  uri: /api/privacy/*
+  methods:
+  - OPTIONS
+  priority: 10
+  upstream_id: privacy-service-upstream
+  plugins:
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true, ['http://localhost:3000']=true }; local origin
+        = ngx.var.http_origin; if origin and allowed[origin] then ngx.header['Access-Control-Allow-Origin']
+        = origin; ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: trm-domain-options
+  uri: /api/trm/*
+  methods:
+  - OPTIONS
+  priority: 10
+  upstream_id: trm-service-upstream
+  plugins:
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true, ['http://localhost:3000']=true }; local origin
+        = ngx.var.http_origin; if origin and allowed[origin] then ngx.header['Access-Control-Allow-Origin']
+        = origin; ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: iam-domain-read
+  uri: /api/iam/*
+  methods:
+  - GET
+  upstream_id: iam-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite: {}
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "roles.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true, ['http://localhost:3000']=true }; local origin
+        = ngx.var.http_origin; if origin and allowed[origin] then ngx.header['Access-Control-Allow-Origin']
+        = origin; ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: iam-domain-write
+  uri: /api/iam/*
+  methods:
+  - POST
+  - PUT
+  - PATCH
+  - DELETE
+  upstream_id: iam-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite: {}
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "roles.create"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true, ['http://localhost:3000']=true }; local origin
+        = ngx.var.http_origin; if origin and allowed[origin] then ngx.header['Access-Control-Allow-Origin']
+        = origin; ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: trm-vendors-read
+  uri: /api/trm/vendors*
+  methods:
+  - GET
+  upstream_id: trm-service-upstream
+  plugins:
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/trm/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "vendors.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true, ['http://localhost:3000']=true }; local origin
+        = ngx.var.http_origin; if origin and allowed[origin] then ngx.header['Access-Control-Allow-Origin']
+        = origin; ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: trm-vendors-write
+  uri: /api/trm/vendors*
+  methods:
+  - POST
+  - PUT
+  - PATCH
+  upstream_id: trm-service-upstream
+  plugins:
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/trm/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "vendors.create"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true, ['http://localhost:3000']=true }; local origin
+        = ngx.var.http_origin; if origin and allowed[origin] then ngx.header['Access-Control-Allow-Origin']
+        = origin; ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: trm-vendors-delete
+  uri: /api/trm/vendors/*
+  methods:
+  - DELETE
+  upstream_id: trm-service-upstream
+  plugins:
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/trm/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "vendors.delete"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true, ['http://localhost:3000']=true }; local origin
+        = ngx.var.http_origin; if origin and allowed[origin] then ngx.header['Access-Control-Allow-Origin']
+        = origin; ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: trm-frameworks-read
+  uri: /api/trm/frameworks*
+  methods:
+  - GET
+  upstream_id: trm-service-upstream
+  plugins:
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/trm/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "frameworks.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true, ['http://localhost:3000']=true }; local origin
+        = ngx.var.http_origin; if origin and allowed[origin] then ngx.header['Access-Control-Allow-Origin']
+        = origin; ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: trm-frameworks-write
+  uri: /api/trm/frameworks*
+  methods:
+  - POST
+  - PUT
+  - PATCH
+  upstream_id: trm-service-upstream
+  plugins:
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/trm/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "frameworks.create"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true, ['http://localhost:3000']=true }; local origin
+        = ngx.var.http_origin; if origin and allowed[origin] then ngx.header['Access-Control-Allow-Origin']
+        = origin; ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: trm-frameworks-delete
+  uri: /api/trm/frameworks/*
+  methods:
+  - DELETE
+  upstream_id: trm-service-upstream
+  plugins:
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/trm/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "frameworks.delete"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true, ['http://localhost:3000']=true }; local origin
+        = ngx.var.http_origin; if origin and allowed[origin] then ngx.header['Access-Control-Allow-Origin']
+        = origin; ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: trm-assessments-read
+  uri: /api/trm/assessments*
+  methods:
+  - GET
+  upstream_id: trm-service-upstream
+  plugins:
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/trm/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "assessments.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true, ['http://localhost:3000']=true }; local origin
+        = ngx.var.http_origin; if origin and allowed[origin] then ngx.header['Access-Control-Allow-Origin']
+        = origin; ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: trm-assessments-write
+  uri: /api/trm/assessments*
+  methods:
+  - POST
+  - PUT
+  - PATCH
+  upstream_id: trm-service-upstream
+  plugins:
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/trm/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "assessments.create"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true, ['http://localhost:3000']=true }; local origin
+        = ngx.var.http_origin; if origin and allowed[origin] then ngx.header['Access-Control-Allow-Origin']
+        = origin; ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: trm-dpas-read
+  uri: /api/trm/dpas*
+  methods:
+  - GET
+  upstream_id: trm-service-upstream
+  plugins:
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/trm/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "dpas.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true, ['http://localhost:3000']=true }; local origin
+        = ngx.var.http_origin; if origin and allowed[origin] then ngx.header['Access-Control-Allow-Origin']
+        = origin; ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: trm-dpas-write
+  uri: /api/trm/dpas*
+  methods:
+  - POST
+  - PUT
+  - PATCH
+  upstream_id: trm-service-upstream
+  plugins:
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/trm/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "dpas.create"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true, ['http://localhost:3000']=true }; local origin
+        = ngx.var.http_origin; if origin and allowed[origin] then ngx.header['Access-Control-Allow-Origin']
+        = origin; ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: privacy-consents-read
+  uri: /api/privacy/*/consents*
+  methods:
+  - GET
+  upstream_id: privacy-service-upstream
+  plugins:
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/privacy/(?:api/)?v1/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "consents.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true, ['http://localhost:3000']=true }; local origin
+        = ngx.var.http_origin; if origin and allowed[origin] then ngx.header['Access-Control-Allow-Origin']
+        = origin; ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: privacy-consents-write
+  uri: /api/privacy/*/consents*
+  methods:
+  - POST
+  - PUT
+  - PATCH
+  upstream_id: privacy-service-upstream
+  plugins:
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/privacy/(?:api/)?v1/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "consents.create"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true, ['http://localhost:3000']=true }; local origin
+        = ngx.var.http_origin; if origin and allowed[origin] then ngx.header['Access-Control-Allow-Origin']
+        = origin; ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: privacy-consents-delete
+  uri: /api/privacy/*/consents/*
+  methods:
+  - DELETE
+  upstream_id: privacy-service-upstream
+  plugins:
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/privacy/(?:api/)?v1/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "consents.delete"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true, ['http://localhost:3000']=true }; local origin
+        = ngx.var.http_origin; if origin and allowed[origin] then ngx.header['Access-Control-Allow-Origin']
+        = origin; ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: privacy-breaches-read
+  uri: /api/privacy/*/breaches*
+  methods:
+  - GET
+  upstream_id: privacy-service-upstream
+  plugins:
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/privacy/(?:api/)?v1/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "breaches.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true, ['http://localhost:3000']=true }; local origin
+        = ngx.var.http_origin; if origin and allowed[origin] then ngx.header['Access-Control-Allow-Origin']
+        = origin; ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: privacy-breaches-write
+  uri: /api/privacy/*/breaches*
+  methods:
+  - POST
+  - PUT
+  - PATCH
+  upstream_id: privacy-service-upstream
+  plugins:
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/privacy/(?:api/)?v1/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "breaches.create"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true, ['http://localhost:3000']=true }; local origin
+        = ngx.var.http_origin; if origin and allowed[origin] then ngx.header['Access-Control-Allow-Origin']
+        = origin; ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: privacy-breaches-delete
+  uri: /api/privacy/*/breaches/*
+  methods:
+  - DELETE
+  upstream_id: privacy-service-upstream
+  plugins:
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/privacy/(?:api/)?v1/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "breaches.delete"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true, ['http://localhost:3000']=true }; local origin
+        = ngx.var.http_origin; if origin and allowed[origin] then ngx.header['Access-Control-Allow-Origin']
+        = origin; ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: privacy-script-blocking-read
+  uri: /api/privacy/*/script-rules*
+  methods:
+  - GET
+  upstream_id: privacy-service-upstream
+  plugins:
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/privacy/(?:api/)?v1/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "script_blocking.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true, ['http://localhost:3000']=true }; local origin
+        = ngx.var.http_origin; if origin and allowed[origin] then ngx.header['Access-Control-Allow-Origin']
+        = origin; ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: privacy-script-blocking-write
+  uri: /api/privacy/*/script-rules*
+  methods:
+  - POST
+  - PUT
+  - PATCH
+  upstream_id: privacy-service-upstream
+  plugins:
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/privacy/(?:api/)?v1/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "script_blocking.create"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true, ['http://localhost:3000']=true }; local origin
+        = ngx.var.http_origin; if origin and allowed[origin] then ngx.header['Access-Control-Allow-Origin']
+        = origin; ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: privacy-script-blocking-delete
+  uri: /api/privacy/*/script-rules/*
+  methods:
+  - DELETE
+  upstream_id: privacy-service-upstream
+  plugins:
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/privacy/(?:api/)?v1/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "script_blocking.delete"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true, ['http://localhost:3000']=true }; local origin
+        = ngx.var.http_origin; if origin and allowed[origin] then ngx.header['Access-Control-Allow-Origin']
+        = origin; ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: privacy-grievances-read
+  uri: /api/privacy/*/grievances*
+  methods:
+  - GET
+  upstream_id: privacy-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/privacy/(?:api/)?v1/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "grievances.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true }; local origin = ngx.var.http_origin; if origin
+        and allowed[origin] then ngx.header['Access-Control-Allow-Origin'] = origin;
+        ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: privacy-grievances-write
+  uri: /api/privacy/*/grievances*
+  methods:
+  - POST
+  - PUT
+  - PATCH
+  upstream_id: privacy-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/privacy/(?:api/)?v1/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "grievances.write"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true }; local origin = ngx.var.http_origin; if origin
+        and allowed[origin] then ngx.header['Access-Control-Allow-Origin'] = origin;
+        ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: privacy-ropas-read
+  uri: /api/privacy/*/ropas*
+  methods:
+  - GET
+  upstream_id: privacy-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/privacy/(?:api/)?v1/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "ropa.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true }; local origin = ngx.var.http_origin; if origin
+        and allowed[origin] then ngx.header['Access-Control-Allow-Origin'] = origin;
+        ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: privacy-ropas-write
+  uri: /api/privacy/*/ropas*
+  methods:
+  - POST
+  - PUT
+  - PATCH
+  upstream_id: privacy-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/privacy/(?:api/)?v1/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "ropa.create"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true }; local origin = ngx.var.http_origin; if origin
+        and allowed[origin] then ngx.header['Access-Control-Allow-Origin'] = origin;
+        ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: privacy-dpias-read
+  uri: /api/privacy/*/dpias*
+  methods:
+  - GET
+  upstream_id: privacy-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/privacy/(?:api/)?v1/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "dpia.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true }; local origin = ngx.var.http_origin; if origin
+        and allowed[origin] then ngx.header['Access-Control-Allow-Origin'] = origin;
+        ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: privacy-dpias-write
+  uri: /api/privacy/*/dpias*
+  methods:
+  - POST
+  - PUT
+  - PATCH
+  upstream_id: privacy-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/privacy/(?:api/)?v1/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "dpia.create"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true }; local origin = ngx.var.http_origin; if origin
+        and allowed[origin] then ngx.header['Access-Control-Allow-Origin'] = origin;
+        ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: privacy-privacy-requests-read
+  uri: /api/privacy/*/privacy-requests*
+  methods:
+  - GET
+  upstream_id: privacy-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/privacy/(?:api/)?v1/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "dsr.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true }; local origin = ngx.var.http_origin; if origin
+        and allowed[origin] then ngx.header['Access-Control-Allow-Origin'] = origin;
+        ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: privacy-privacy-requests-write
+  uri: /api/privacy/*/privacy-requests*
+  methods:
+  - POST
+  - PUT
+  - PATCH
+  upstream_id: privacy-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/privacy/(?:api/)?v1/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "dsr.create"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true }; local origin = ngx.var.http_origin; if origin
+        and allowed[origin] then ngx.header['Access-Control-Allow-Origin'] = origin;
+        ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: privacy-audit-logs-read
+  uri: /api/privacy/*/audit-logs*
+  methods:
+  - GET
+  upstream_id: privacy-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/privacy/(?:api/)?v1/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "audit_logs.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true }; local origin = ngx.var.http_origin; if origin
+        and allowed[origin] then ngx.header['Access-Control-Allow-Origin'] = origin;
+        ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: privacy-audit-logs-write
+  uri: /api/privacy/*/audit-logs*
+  methods:
+  - POST
+  - PUT
+  - PATCH
+  upstream_id: privacy-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/privacy/(?:api/)?v1/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "audit_logs.write"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf, ctx) local allowed = { ['https://demo.arcompli.com']=true,
+        ['http://localhost:5173']=true }; local origin = ngx.var.http_origin; if origin
+        and allowed[origin] then ngx.header['Access-Control-Allow-Origin'] = origin;
+        ngx.header['Access-Control-Allow-Credentials'] = 'true'; ngx.header['Access-Control-Allow-Methods']
+        = 'GET,POST,PUT,DELETE,OPTIONS'; ngx.header['Access-Control-Allow-Headers']
+        = 'Authorization,Content-Type,X-Organization-Id'; end; end
+- id: privacy-cookie-banners-read
+  uri: /api/privacy/*/cookie-banners*
+  methods:
+  - GET
+  upstream_id: privacy-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/privacy/(?:api/)?v1/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "consents.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: privacy-cookie-banners-write
+  uri: /api/privacy/*/cookie-banners*
+  methods:
+  - POST
+  - PUT
+  - PATCH
+  upstream_id: privacy-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/privacy/(?:api/)?v1/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "consents.create"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: privacy-purposes-read
+  uri: /api/privacy/*/purposes*
+  methods:
+  - GET
+  upstream_id: privacy-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/privacy/(?:api/)?v1/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "consents.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: privacy-purposes-write
+  uri: /api/privacy/*/purposes*
+  methods:
+  - POST
+  - PUT
+  - PATCH
+  upstream_id: privacy-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/privacy/(?:api/)?v1/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "consents.create"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: privacy-consent-forms-read
+  uri: /api/privacy/*/consent-forms*
+  methods:
+  - GET
+  upstream_id: privacy-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/privacy/(?:api/)?v1/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "consents.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: privacy-consent-forms-write
+  uri: /api/privacy/*/consent-forms*
+  methods:
+  - POST
+  - PUT
+  - PATCH
+  upstream_id: privacy-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/privacy/(?:api/)?v1/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "consents.create"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: discovery-sources-read
+  uri: /api/discovery/sources*
+  methods:
+  - GET
+  upstream_id: discovery-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/discovery/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "discovery.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: discovery-sources-write
+  uri: /api/discovery/sources*
+  methods:
+  - POST
+  - PUT
+  - PATCH
+  - DELETE
+  upstream_id: discovery-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/discovery/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "discovery.create"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: discovery-jobs-read
+  uri: /api/discovery/jobs*
+  methods:
+  - GET
+  upstream_id: discovery-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/discovery/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "discovery.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: discovery-jobs-write
+  uri: /api/discovery/jobs*
+  methods:
+  - POST
+  - PUT
+  - PATCH
+  - DELETE
+  upstream_id: discovery-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/discovery/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "discovery.create"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: discovery-scans-read
+  uri: /api/discovery/scans*
+  methods:
+  - GET
+  upstream_id: discovery-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/discovery/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "discovery.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: discovery-scans-write
+  uri: /api/discovery/scans*
+  methods:
+  - POST
+  - PUT
+  - PATCH
+  - DELETE
+  upstream_id: discovery-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/discovery/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "discovery.create"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: discovery-profiles-read
+  uri: /api/discovery/profiles*
+  methods:
+  - GET
+  upstream_id: discovery-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/discovery/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "discovery.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: discovery-profiles-write
+  uri: /api/discovery/profiles*
+  methods:
+  - POST
+  - PUT
+  - PATCH
+  - DELETE
+  upstream_id: discovery-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/discovery/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "discovery.create"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: discovery-dashboard
+  uri: /api/discovery/dashboard
+  methods:
+  - GET
+  upstream_id: discovery-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/discovery/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "discovery.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: discovery-rules-read
+  uri: /api/discovery/rules*
+  methods:
+  - GET
+  upstream_id: discovery-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/discovery/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "discovery.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: discovery-rules-write
+  uri: /api/discovery/rules*
+  methods:
+  - POST
+  - PUT
+  - PATCH
+  - DELETE
+  upstream_id: discovery-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/discovery/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "discovery.create"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: discovery-findings-read
+  uri: /api/discovery/findings*
+  methods:
+  - GET
+  upstream_id: discovery-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/discovery/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "discovery.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: discovery-findings-write
+  uri: /api/discovery/findings*
+  methods:
+  - POST
+  - PUT
+  - PATCH
+  - DELETE
+  upstream_id: discovery-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/discovery/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "discovery.create"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: discovery-schedules-read
+  uri: /api/discovery/schedules*
+  methods:
+  - GET
+  upstream_id: discovery-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/discovery/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "discovery.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: discovery-schedules-write
+  uri: /api/discovery/schedules*
+  methods:
+  - POST
+  - PUT
+  - PATCH
+  - DELETE
+  upstream_id: discovery-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/discovery/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "discovery.create"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: discovery-dict-read
+  uri: /api/discovery/dictionary*
+  methods:
+  - GET
+  upstream_id: discovery-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/discovery/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "dictionary.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: discovery-dict-write
+  uri: /api/discovery/dictionary*
+  methods:
+  - POST
+  - PUT
+  - PATCH
+  - DELETE
+  upstream_id: discovery-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/discovery/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "dictionary.create"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: discovery-domain-options
+  uri: /api/discovery/*
+  methods:
+  - OPTIONS
+  upstream_id: discovery-service-upstream
+  priority: 10
+  plugins:
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: abc-domain-options-v2
+  uri: /api/abc/*
+  methods:
+  - OPTIONS
+  upstream_id: abc-service-upstream
+  priority: 10
+  plugins:
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: abc-items-read
+  uri: /api/abc/*/items*
+  methods:
+  - GET
+  upstream_id: abc-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/abc/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "sources.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: abc-items-write
+  uri: /api/abc/*/items*
+  methods:
+  - POST
+  - PUT
+  - PATCH
+  - DELETE
+  upstream_id: abc-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/abc/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "sources.create"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: abc-categories-read
+  uri: /api/abc/*/categories*
+  methods:
+  - GET
+  upstream_id: abc-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/abc/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "sources.read"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: abc-categories-write
+  uri: /api/abc/*/categories*
+  methods:
+  - POST
+  - PUT
+  - PATCH
+  - DELETE
+  upstream_id: abc-service-upstream
+  plugins:
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/abc/(.*)
+      - /api/v1/$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "sources.create"}'
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: privacy-portal-public
+  uri: /api/portal/*
+  methods:
+  - GET
+  - POST
+  - OPTIONS
+  upstream_id: privacy-service-upstream
+  plugins:
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/portal/(.*)
+      - /api/portal/$1
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+- id: cookie-scanner-read
+  uri: /api/cookie-scanner/scans*
+  methods:
+  - GET
+  upstream_id: cookie-scanner-upstream
+  plugins:
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/cookie-scanner/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "cookie_scanner.read"}'
+- id: cookie-scanner-write
+  uri: /api/cookie-scanner/scans*
+  methods:
+  - POST
+  upstream_id: cookie-scanner-upstream
+  plugins:
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+    limit-count:
+      count: 100
+      time_window: 60
+      rejected_code: 429
+      key: http_x_organization_id
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/cookie-scanner/(.*)
+      - /$1
+    ext-plugin-pre-req:
+      conf:
+      - name: authz
+        value: '{"permission_slug": "cookie_scanner.create"}'
+- id: cookie-scanner-options
+  uri: /api/cookie-scanner/*
+  methods:
+  - OPTIONS
+  upstream_id: cookie-scanner-upstream
+  plugins:
+    cors:
+      allow_origins: https://demo.arcompli.com
+      allow_methods: GET,POST,PUT,DELETE,OPTIONS
+      allow_headers: Authorization,Content-Type,X-Organization-Id
+      allow_credential: true
+    serverless-post-function:
+      phase: header_filter
+      functions:
+      - return function(conf,ctx) local a={['https://demo.arcompli.com']=true,['http://localhost:5173']=true};
+        local o=ngx.var.http_origin; if o and a[o] then ngx.header['Access-Control-Allow-Origin']=o;
+        ngx.header['Access-Control-Allow-Credentials']='true'; ngx.header['Access-Control-Allow-Methods']='GET,POST,PUT,DELETE,OPTIONS';
+        ngx.header['Access-Control-Allow-Headers']='Authorization,Content-Type,X-Organization-Id';
+        end; end
+  priority: 10
+- id: iam-swagger-route
+  uri: /api/iam/swagger/*
+  priority: 10
+  upstream_id: iam-service-upstream
+  plugins:
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/iam/(.*)
+      - /$1
+    cors:
+      allow_origins: '*'
+      allow_methods: GET,OPTIONS
+- id: trm-swagger-route
+  uri: /api/trm/swagger/*
+  priority: 10
+  upstream_id: trm-service-upstream
+  plugins:
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/trm/(.*)
+      - /$1
+    cors:
+      allow_origins: '*'
+      allow_methods: GET,OPTIONS
+- id: privacy-swagger-route
+  uri: /api/privacy/swagger/*
+  priority: 10
+  upstream_id: privacy-service-upstream
+  plugins:
+    proxy-rewrite:
+      regex_uri:
+      - ^/api/privacy/(.*)
+      - /$1
+    cors:
+      allow_origins: '*'
+      allow_methods: GET,OPTIONS
+
+#END

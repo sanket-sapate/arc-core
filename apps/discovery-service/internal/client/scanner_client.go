@@ -223,7 +223,9 @@ func (c *httpScannerClient) CreateProfile(ctx context.Context, tenantID, name st
 // ── TriggerScan ───────────────────────────────────────────────────────────
 
 type triggerScanRequest struct {
-	SourceID string `json:"source_id"`
+	SourceID  string `json:"source_id"`
+	ProfileID string `json:"profile_id,omitempty"`
+	Type      string `json:"type"`
 }
 
 type triggerScanResponse struct {
@@ -232,7 +234,10 @@ type triggerScanResponse struct {
 
 // TriggerScan initiates an asynchronous scan and returns the third-party job_id.
 func (c *httpScannerClient) TriggerScan(ctx context.Context, tenantID, sourceID string) (string, error) {
-	req, err := c.newRequest(ctx, http.MethodPost, "/scans", tenantID, triggerScanRequest{SourceID: sourceID})
+	req, err := c.newRequest(ctx, http.MethodPost, "/admin/scans", tenantID, triggerScanRequest{
+		SourceID: sourceID,
+		Type:     "full",
+	})
 	if err != nil {
 		return "", err
 	}

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"log"
 
 	coreMw "github.com/arc-self/packages/go-core/middleware"
 	"github.com/labstack/echo/v4"
@@ -14,15 +15,22 @@ func InternalContextMiddleware() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			ctx := c.Request().Context()
-			if userID := c.Request().Header.Get("X-Internal-User-Id"); userID != "" {
+			
+			// Debug logging
+			userID := c.Request().Header.Get("X-Internal-User-Id")
+			orgID := c.Request().Header.Get("X-Internal-Org-Id")
+			perms := c.Request().Header.Get("X-Internal-Permissions")
+			log.Printf("TRM middleware: userID=%s orgID=%s perms=%s", userID, orgID, perms)
+			
+			if userID != "" {
 				ctx = context.WithValue(ctx, coreMw.UserIDKey, userID)
 			}
-			if orgID := c.Request().Header.Get("X-Internal-Org-Id"); orgID != "" {
+			if orgID != "" {
 				ctx = context.WithValue(ctx, coreMw.OrgIDKey, orgID)
-			} else if orgID := c.Request().Header.Get("X-Organization-Id"); orgID != "" {
-				ctx = context.WithValue(ctx, coreMw.OrgIDKey, orgID)
+			} else if altOrgID := c.Request().Header.Get("X-Organization-Id"); altOrgID != "" {
+				ctx = context.WithValue(ctx, coreMw.OrgIDKey, altOrgID)
 			}
-			if perms := c.Request().Header.Get("X-Internal-Permissions"); perms != "" {
+			if perms != "" {
 				ctx = context.WithValue(ctx, coreMw.PermissionsKey, perms)
 			}
 			c.SetRequest(c.Request().WithContext(ctx))

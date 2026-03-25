@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/arc-self/apps/trm-service/internal/service"
+	coreMw "github.com/arc-self/packages/go-core/middleware"
 )
 
 type updateAssessmentCycleRequest struct {
@@ -16,6 +17,9 @@ type updateAssessmentCycleRequest struct {
 
 func updateAssessmentCycleHandler(svc service.AssessmentService, logger *zap.Logger) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		if !coreMw.HasPermission(c.Request().Context(), "assessments.update") {
+			return c.JSON(http.StatusForbidden, errResp("missing assessments.update permission"))
+		}
 		var req updateAssessmentCycleRequest
 		if err := c.Bind(&req); err != nil {
 			return c.JSON(http.StatusBadRequest, errResp("invalid request body"))
@@ -37,6 +41,9 @@ type upsertAnswerRequest struct {
 
 func upsertAssessmentAnswerHandler(svc service.AssessmentService, logger *zap.Logger) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		if !coreMw.HasPermission(c.Request().Context(), "assessments.update") {
+			return c.JSON(http.StatusForbidden, errResp("missing assessments.update permission"))
+		}
 		var req upsertAnswerRequest
 		if err := c.Bind(&req); err != nil {
 			return c.JSON(http.StatusBadRequest, errResp("invalid request body"))
@@ -57,6 +64,9 @@ func upsertAssessmentAnswerHandler(svc service.AssessmentService, logger *zap.Lo
 
 func listAssessmentAnswersHandler(svc service.AssessmentService, logger *zap.Logger) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		if !coreMw.HasPermission(c.Request().Context(), "assessments.read") {
+			return c.JSON(http.StatusForbidden, errResp("missing assessments.read permission"))
+		}
 		items, err := svc.ListAnswers(c.Request().Context(), c.Param("id"))
 		if err != nil {
 			logger.Error("ListAnswers failed", zap.Error(err))

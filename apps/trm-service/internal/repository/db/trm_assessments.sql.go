@@ -53,17 +53,20 @@ func (q *Queries) CreateAuditCycle(ctx context.Context, arg CreateAuditCyclePara
 
 const createFrameworkQuestion = `-- name: CreateFrameworkQuestion :one
 
-INSERT INTO framework_questions (id, framework_id, question_text, question_type, options)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, framework_id, question_text, question_type, options, created_at, updated_at
+INSERT INTO framework_questions (id, framework_id, question_text, question_type, options, import_batch_id, import_row_number, import_source)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, framework_id, question_text, question_type, options, created_at, updated_at, import_batch_id, import_row_number, import_source
 `
 
 type CreateFrameworkQuestionParams struct {
-	ID           pgtype.UUID
-	FrameworkID  pgtype.UUID
-	QuestionText string
-	QuestionType pgtype.Text
-	Options      []byte
+	ID              pgtype.UUID
+	FrameworkID     pgtype.UUID
+	QuestionText    string
+	QuestionType    pgtype.Text
+	Options         []byte
+	ImportBatchID   pgtype.UUID
+	ImportRowNumber pgtype.Int4
+	ImportSource    pgtype.Text
 }
 
 // ── Framework Questions ───────────────────────────────────────────────────
@@ -74,6 +77,9 @@ func (q *Queries) CreateFrameworkQuestion(ctx context.Context, arg CreateFramewo
 		arg.QuestionText,
 		arg.QuestionType,
 		arg.Options,
+		arg.ImportBatchID,
+		arg.ImportRowNumber,
+		arg.ImportSource,
 	)
 	var i FrameworkQuestion
 	err := row.Scan(
@@ -84,6 +90,9 @@ func (q *Queries) CreateFrameworkQuestion(ctx context.Context, arg CreateFramewo
 		&i.Options,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ImportBatchID,
+		&i.ImportRowNumber,
+		&i.ImportSource,
 	)
 	return i, err
 }
@@ -115,6 +124,26 @@ type DeleteFrameworkParams struct {
 
 func (q *Queries) DeleteFramework(ctx context.Context, arg DeleteFrameworkParams) error {
 	_, err := q.db.Exec(ctx, deleteFramework, arg.ID, arg.OrganizationID)
+	return err
+}
+
+const deleteFrameworkQuestion = `-- name: DeleteFrameworkQuestion :exec
+DELETE FROM framework_questions
+WHERE id = $1
+`
+
+func (q *Queries) DeleteFrameworkQuestion(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteFrameworkQuestion, id)
+	return err
+}
+
+const deleteFrameworkQuestionsByBatch = `-- name: DeleteFrameworkQuestionsByBatch :exec
+DELETE FROM framework_questions
+WHERE import_batch_id = $1
+`
+
+func (q *Queries) DeleteFrameworkQuestionsByBatch(ctx context.Context, importBatchID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteFrameworkQuestionsByBatch, importBatchID)
 	return err
 }
 
@@ -213,7 +242,7 @@ func (q *Queries) ListAuditCycles(ctx context.Context, organizationID pgtype.UUI
 }
 
 const listFrameworkQuestions = `-- name: ListFrameworkQuestions :many
-SELECT id, framework_id, question_text, question_type, options, created_at, updated_at FROM framework_questions
+SELECT id, framework_id, question_text, question_type, options, created_at, updated_at, import_batch_id, import_row_number, import_source FROM framework_questions
 WHERE framework_id = $1
 ORDER BY created_at ASC
 `
@@ -235,6 +264,9 @@ func (q *Queries) ListFrameworkQuestions(ctx context.Context, frameworkID pgtype
 			&i.Options,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ImportBatchID,
+			&i.ImportRowNumber,
+			&i.ImportSource,
 		); err != nil {
 			return nil, err
 		}

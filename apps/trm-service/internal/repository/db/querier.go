@@ -25,7 +25,10 @@ type Querier interface {
 	// ── Vendors ───────────────────────────────────────────────────────────────
 	CreateVendor(ctx context.Context, arg CreateVendorParams) (Vendor, error)
 	DeleteAuditCycle(ctx context.Context, arg DeleteAuditCycleParams) error
+	DeleteDPA(ctx context.Context, arg DeleteDPAParams) error
 	DeleteFramework(ctx context.Context, arg DeleteFrameworkParams) error
+	DeleteFrameworkQuestion(ctx context.Context, id pgtype.UUID) error
+	DeleteFrameworkQuestionsByBatch(ctx context.Context, importBatchID pgtype.UUID) error
 	DeleteReplicatedDictionary(ctx context.Context, id pgtype.UUID) error
 	DeleteVendor(ctx context.Context, arg DeleteVendorParams) error
 	GetAssessment(ctx context.Context, arg GetAssessmentParams) (Assessment, error)
@@ -41,6 +44,7 @@ type Querier interface {
 	ListAssessmentsByVendor(ctx context.Context, arg ListAssessmentsByVendorParams) ([]Assessment, error)
 	ListAuditCycles(ctx context.Context, organizationID pgtype.UUID) ([]AuditCycle, error)
 	ListDPADataScope(ctx context.Context, dpaID pgtype.UUID) ([]ListDPADataScopeRow, error)
+	ListDPAs(ctx context.Context, organizationID pgtype.UUID) ([]Dpa, error)
 	ListDPAsByVendor(ctx context.Context, arg ListDPAsByVendorParams) ([]Dpa, error)
 	ListFrameworkQuestions(ctx context.Context, frameworkID pgtype.UUID) ([]FrameworkQuestion, error)
 	ListFrameworks(ctx context.Context, organizationID pgtype.UUID) ([]Framework, error)

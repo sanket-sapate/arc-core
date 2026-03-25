@@ -80,3 +80,10 @@ export const useDeleteDPA = () => {
         },
     });
 };
+
+export const addDPADataScope = async (dpaId: string, dictionaryId: string, justification?: string) => {
+    return api.post(`/api/trm/dpas/${dpaId}/data-scope`, {
+        dictionary_id: dictionaryId,
+        justification: justification || "",
+    });
+};

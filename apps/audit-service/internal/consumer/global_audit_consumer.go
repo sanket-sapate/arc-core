@@ -22,6 +22,7 @@ package consumer
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -119,6 +120,14 @@ func (c *GlobalAuditConsumer) processMessage(ctx context.Context, msg *nats.Msg)
 			msg.Term()
 			return
 		}
+		if errors.Is(err, errUnresolvableOrgID) {
+			c.logger.Warn("dropping event with unresolvable organization_id",
+				zap.String("subject", msg.Subject),
+				zap.Error(err),
+			)
+			msg.Ack() // Dead-letter: ACK so it leaves the queue
+			return
+		}
 		c.logger.Error("NAK audit event (transient error)",
 			zap.String("subject", msg.Subject),
 			zap.Error(err),
@@ -188,13 +197,34 @@ func (c *GlobalAuditConsumer) processEvent(ctx context.Context, data []byte, sub
 		return &globalPoisonPillError{msg: fmt.Sprintf("invalid event_id %q: %v", event.ID, err)}
 	}
 
-	// organization_id is best-effort: zero-value if absent (legacy services).
+	// organization_id resolution: try top-level field first, then fall back
+	// to legacy "tenant_id" key inside the payload.
 	var orgID pgtype.UUID
-	if event.OrganizationID != "" {
-		orgID, err = parseStringUUID(event.OrganizationID)
-		if err != nil {
-			return &globalPoisonPillError{msg: fmt.Sprintf("invalid organization_id %q: %v", event.OrganizationID, err)}
+	orgIDStr := event.OrganizationID
+	if orgIDStr == "" {
+		var pm map[string]interface{}
+		if json.Unmarshal(event.Payload, &pm) == nil {
+			if tid, ok := pm["tenant_id"].(string); ok {
+				orgIDStr = tid
+			}
 		}
+	}
+	if orgIDStr != "" {
+		orgID, err = parseStringUUID(orgIDStr)
+		if err != nil {
+			return &globalPoisonPillError{msg: fmt.Sprintf("invalid organization_id %q: %v", orgIDStr, err)}
+		}
+	}
+
+	// If organization_id is completely unresolvable, do NOT attempt the DB
+	// insert — the NOT NULL constraint would reject it and cause an infinite
+	// NAK loop.  ACK and drop instead.
+	if !orgID.Valid {
+		c.logger.Warn("event has no resolvable organization_id or tenant_id, dropping",
+			zap.String("event_id", event.ID),
+			zap.String("subject", subject),
+		)
+		return fmt.Errorf("%w: event_id=%s subject=%s", errUnresolvableOrgID, event.ID, subject)
 	}
 
 	// actor_id is optional (system-generated events have no actor).

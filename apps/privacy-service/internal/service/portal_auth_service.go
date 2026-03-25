@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -90,11 +91,14 @@ func (s *portalAuthService) VerifyMagicLink(ctx context.Context, token string) (
 
 	// Generate JWT
 	claims := jwt.MapClaims{
+		"key":   "portal_key",
 		"email": mt.Email,
 		"sub":   mt.Email,
 		"exp":   time.Now().Add(24 * time.Hour).Unix(),
 		"iat":   time.Now().Unix(),
 	}
+
+	log.Printf("JWT claims: %+v", claims)
 
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signedToken, err := jwtToken.SignedString(s.jwtKey)

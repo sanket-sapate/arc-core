@@ -1,42 +1,50 @@
 import { type RouteConfig, index, layout, route } from "@react-router/dev/routes";
 
 export default [
+    // ── Public Landing Page ────────────────────────────────────────────────
+    index("routes/_index.tsx"),
+
     // ── Routes wrapped in the authenticated AppLayout ──────────────────────
     layout("components/layout/AppLayout.tsx", [
-        // Dashboard (index route)
-        index("routes/dashboard.tsx"),
+        // Admin Application Namespace
+        route("app", "routes/app.dashboard.tsx"),
+        route("app/dashboard", "routes/app.dashboard.tsx", { id: "app-dashboard-duplicate" }),
 
         // Data Intelligence
-        route("data-intelligence/discovery", "routes/data-intelligence.discovery.tsx"),
-        route("data-intelligence/cookie-scanner", "routes/data-intelligence.cookie-scanner.tsx"),
-        route("data-intelligence/sources", "routes/data-intelligence.sources.tsx"),
-        route("data-intelligence/jobs", "routes/data-intelligence.jobs.tsx"),
-        // route("data-intelligence/profiles", "routes/data-intelligence.profiles.tsx"),
-        route("data-intelligence/dictionary", "routes/data-intelligence.dictionary.tsx"),
+        route("app/data-intelligence/discovery", "routes/app.data-intelligence.discovery.tsx"),
+        route("app/data-intelligence/cookie-scanner", "routes/app.data-intelligence.cookie-scanner.tsx"),
+        route("app/data-intelligence/sources", "routes/app.data-intelligence.sources.tsx"),
+        route("app/data-intelligence/jobs", "routes/app.data-intelligence.jobs.tsx"),
+        route("app/data-intelligence/dictionary", "routes/app.data-intelligence.dictionary.tsx"),
+        route("app/data-intelligence/mapping", "routes/app.data-intelligence.mapping.tsx"),
 
         // Consent Management
-        route("consent/banners", "routes/consent.banners.tsx"),
-        route("consent/forms", "routes/consent.forms.tsx"),
-        route("consent/purposes", "routes/consent.purposes.tsx"),
-        route("consent/script-blocking", "routes/consent.script-blocking.tsx"),
+        route("app/consent/banners", "routes/app.consent.banners.tsx"),
+        route("app/consent/forms", "routes/app.consent.forms.tsx"),
+        route("app/consent/purposes", "routes/app.consent.purposes.tsx"),
+        route("app/consent/script-blocking", "routes/app.consent.script-blocking.tsx"),
 
         // Privacy Operations
-        route("privacy-ops/ropa", "routes/privacy-ops.ropa.tsx"),
-        route("privacy-ops/dpia", "routes/privacy-ops.dpia.tsx"),
-        route("privacy-ops/dsr", "routes/privacy-ops.dsr.tsx"),
-        route("privacy-ops/breaches", "routes/privacy-ops.breaches.tsx"),
+        route("app/privacy-ops/ropa", "routes/app.privacy-ops.ropa.tsx"),
+        route("app/privacy-ops/dpia", "routes/app.privacy-ops.dpia.tsx"),
+        route("app/privacy-ops/dsr", "routes/app.privacy-ops.dsr.tsx"),
+        route("app/privacy-ops/breaches", "routes/app.privacy-ops.breaches.tsx"),
 
         // Third-Party Risk
-        route("third-party-risk/vendors", "routes/third-party-risk.vendors.tsx"),
-        route("third-party-risk/assessments", "routes/third-party-risk.assessments.tsx"),
-        route("third-party-risk/frameworks", "routes/third-party-risk.frameworks.tsx"),
-        route("third-party-risk/dpas", "routes/third-party-risk.dpas.tsx"),
+        route("app/third-party-risk/vendors", "routes/app.third-party-risk.vendors.tsx"),
+        route("app/third-party-risk/assessments", "routes/app.third-party-risk.assessments.tsx"),
+        route("app/third-party-risk/frameworks", "routes/app.third-party-risk.frameworks.tsx"),
+        route("app/third-party-risk/frameworks/:id", "routes/app.third-party-risk.frameworks.$id.tsx"),
+        route("app/third-party-risk/dpas", "routes/app.third-party-risk.dpas.tsx"),
+
+        route("app/third-party-risk/assessments/:id", "routes/app.third-party-risk.assessments.$id.tsx"),
 
         // Administration
-        route("settings/integrations", "routes/settings.integrations.tsx"),
-        route("admin/access", "routes/admin.access.tsx"),
-        route("admin/developer", "routes/admin.developer.tsx"),
-        route("admin/audit", "routes/admin.audit.tsx"),
+        route("app/settings/integrations", "routes/app.settings.integrations.tsx"),
+        route("app/settings/roles", "routes/app.settings.roles.tsx"),
+        route("app/admin/access", "routes/app.admin.access.tsx"),
+        route("app/admin/developer", "routes/app.admin.developer.tsx"),
+        route("app/admin/audit", "routes/app.admin.audit.tsx"),
     ]),
 
     // ── Non-layout routes (public) ─────────────────────────────────────────

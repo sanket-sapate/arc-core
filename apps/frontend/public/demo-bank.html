@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniBank - Secure Account Opening</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 min-h-screen flex items-center justify-center p-4">
+
+    <div class="max-w-2xl w-full bg-white rounded-xl shadow-lg overflow-hidden flex flex-col md:flex-row">
+        <!-- Sidebar / Brand -->
+        <div class="bg-indigo-600 p-8 flex flex-col justify-between text-white md:w-1/3">
+            <div>
+                <div class="flex items-center gap-2 mb-6">
+                    <i data-lucide="landmark" class="w-8 h-8"></i>
+                    <span class="text-2xl font-bold tracking-tight">OmniBank</span>
+                </div>
+                <h2 class="text-xl font-semibold mb-2">Digital KYC</h2>
+                <p class="text-indigo-100 text-sm">Open your account in minutes with our secure digital verification
+                    process.</p>
+            </div>
+            <div class="text-xs text-indigo-200 mt-8">
+                &copy; 2024 OmniBank Financial. All rights reserved.
+            </div>
+        </div>
+
+        <!-- Form Section -->
+        <div class="p-8 md:w-2/3">
+            <h1 class="text-2xl font-bold text-slate-900 mb-6">Create your account</h1>
+
+            <form id="onboarding-form" class="space-y-5" action="/submit-success.html" method="GET">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700">First Name</label>
+                        <input type="text" name="first_name" required
+                            class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-sm font-medium text-slate-700">Last Name</label>
+                        <input type="text" name="last_name" required
+                            class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-sm font-medium text-slate-700">Email Address</label>
+                    <input type="email" name="email" required
+                        class="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <div class="bg-indigo-50 p-4 rounded-lg space-y-3">
+                    <h3 class="font-medium text-indigo-900 flex items-center gap-2">
+                        <i data-lucide="shield-check" class="w-4 h-4"></i>
+                        Privacy Preferences
+                    </h3>
+
+                    <label class="flex items-start gap-3 cursor-pointer">
+                        <div class="flex items-center h-5">
+                            <input type="checkbox" name="marketing" data-cmp-consent-id="marketing_email"
+                                class="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                        </div>
+                        <div class="text-sm">
+                            <span class="font-medium text-slate-900">Marketing Updates</span>
+                            <p class="text-slate-500">Receive personalized offers and financial tips.</p>
+                        </div>
+                    </label>
+
+                    <label class="flex items-start gap-3 cursor-pointer">
+                        <div class="flex items-center h-5">
+                            <input type="checkbox" name="biometric" data-cmp-consent-id="bio_auth" checked
+                                class="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                        </div>
+                        <div class="text-sm">
+                            <span class="font-medium text-slate-900">Enable Biometric Login</span>
+                            <p class="text-slate-500">Use FaceID/TouchID for faster access.</p>
+                        </div>
+                    </label>
+
+                    <label class="flex items-start gap-3 cursor-pointer">
+                        <div class="flex items-center h-5">
+                            <input type="checkbox" name="analytics" data-cmp-consent-id="spend_analytics"
+                                class="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                        </div>
+                        <div class="text-sm">
+                            <span class="font-medium text-slate-900">Spend Analytics</span>
+                            <p class="text-slate-500">Allow AI analysis of your transaction history.</p>
+                        </div>
+                    </label>
+                </div>
+
+                <hr class="border-slate-200" />
+
+                <button type="submit"
+                    class="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition-colors shadow-sm flex items-center justify-center gap-2">
+                    Complete Identity Verification
+                    <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- CMP SDK Integration -->
+    <script src="/api/v1/sdk/cmp.js"></script>
+    <script>
+        lucide.createIcons();
+
+        // Initialize CMP
+        // Using a demo Tenant ID from seeding (or any string since portal mocks it)
+        window.CMP.init({
+            apiKey: 'f8c965ecdf3499ed9fb3343a303b8f9df5ff01e4746c4dd562f86d9635cb47df',
+            formSelector: '#onboarding-form',
+            mode: 'strict',
+            onSuccess: (receipt) => {
+                console.log("Consent flow completed. Receipt:", receipt);
+            },
+            onError: (err) => {
+                console.error("Consent flow failed:", err);
+                alert("You must complete the consent process to proceed.");
+            }
+        });
+    </script>
+</body>
+
+</html>

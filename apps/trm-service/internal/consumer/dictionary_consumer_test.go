@@ -60,16 +60,40 @@ func (m *mockQuerier) GetFramework(ctx context.Context, arg db.GetFrameworkParam
 func (m *mockQuerier) ListFrameworks(ctx context.Context, organizationID pgtype.UUID) ([]db.Framework, error) {
 	return nil, nil
 }
+func (m *mockQuerier) DeleteFramework(ctx context.Context, arg db.DeleteFrameworkParams) error {
+	return nil
+}
+func (m *mockQuerier) UpdateFramework(ctx context.Context, arg db.UpdateFrameworkParams) (db.Framework, error) {
+	return db.Framework{}, nil
+}
+func (m *mockQuerier) CreateFrameworkQuestion(ctx context.Context, arg db.CreateFrameworkQuestionParams) (db.FrameworkQuestion, error) {
+	return db.FrameworkQuestion{}, nil
+}
+func (m *mockQuerier) DeleteFrameworkQuestion(ctx context.Context, id pgtype.UUID) error {
+	return nil
+}
+func (m *mockQuerier) DeleteFrameworkQuestionsByBatch(ctx context.Context, importBatchID pgtype.UUID) error {
+	return nil
+}
+func (m *mockQuerier) ListFrameworkQuestions(ctx context.Context, frameworkID pgtype.UUID) ([]db.FrameworkQuestion, error) {
+	return nil, nil
+}
 func (m *mockQuerier) CreateAssessment(ctx context.Context, arg db.CreateAssessmentParams) (db.Assessment, error) {
 	return db.Assessment{}, nil
 }
 func (m *mockQuerier) GetAssessment(ctx context.Context, arg db.GetAssessmentParams) (db.Assessment, error) {
 	return db.Assessment{}, nil
 }
+func (m *mockQuerier) ListAssessments(ctx context.Context, organizationID pgtype.UUID) ([]db.Assessment, error) {
+	return nil, nil
+}
 func (m *mockQuerier) ListAssessmentsByVendor(ctx context.Context, arg db.ListAssessmentsByVendorParams) ([]db.Assessment, error) {
 	return nil, nil
 }
 func (m *mockQuerier) UpdateAssessmentStatus(ctx context.Context, arg db.UpdateAssessmentStatusParams) (db.Assessment, error) {
+	return db.Assessment{}, nil
+}
+func (m *mockQuerier) UpdateAssessmentCycle(ctx context.Context, arg db.UpdateAssessmentCycleParams) (db.Assessment, error) {
 	return db.Assessment{}, nil
 }
 func (m *mockQuerier) CreateDPA(ctx context.Context, arg db.CreateDPAParams) (db.Dpa, error) {
@@ -78,17 +102,36 @@ func (m *mockQuerier) CreateDPA(ctx context.Context, arg db.CreateDPAParams) (db
 func (m *mockQuerier) GetDPA(ctx context.Context, arg db.GetDPAParams) (db.Dpa, error) {
 	return db.Dpa{}, nil
 }
+func (m *mockQuerier) ListDPAs(ctx context.Context, organizationID pgtype.UUID) ([]db.Dpa, error) {
+	return nil, nil
+}
 func (m *mockQuerier) ListDPAsByVendor(ctx context.Context, arg db.ListDPAsByVendorParams) ([]db.Dpa, error) {
 	return nil, nil
 }
 func (m *mockQuerier) UpdateDPAStatus(ctx context.Context, arg db.UpdateDPAStatusParams) (db.Dpa, error) {
 	return db.Dpa{}, nil
 }
+func (m *mockQuerier) DeleteDPA(ctx context.Context, arg db.DeleteDPAParams) error { return nil }
 func (m *mockQuerier) AddDPADataScope(ctx context.Context, arg db.AddDPADataScopeParams) error {
 	return nil
 }
-func (m *mockQuerier) ListDPADataScope(ctx context.Context, dpaID pgtype.UUID) ([]db.DpaDataScopeRow, error) {
+func (m *mockQuerier) ListDPADataScope(ctx context.Context, dpaID pgtype.UUID) ([]db.ListDPADataScopeRow, error) {
 	return nil, nil
+}
+func (m *mockQuerier) CreateAuditCycle(ctx context.Context, arg db.CreateAuditCycleParams) (db.AuditCycle, error) {
+	return db.AuditCycle{}, nil
+}
+func (m *mockQuerier) GetAuditCycle(ctx context.Context, arg db.GetAuditCycleParams) (db.AuditCycle, error) {
+	return db.AuditCycle{}, nil
+}
+func (m *mockQuerier) ListAuditCycles(ctx context.Context, organizationID pgtype.UUID) ([]db.AuditCycle, error) {
+	return nil, nil
+}
+func (m *mockQuerier) UpdateAuditCycle(ctx context.Context, arg db.UpdateAuditCycleParams) (db.AuditCycle, error) {
+	return db.AuditCycle{}, nil
+}
+func (m *mockQuerier) DeleteAuditCycle(ctx context.Context, arg db.DeleteAuditCycleParams) error {
+	return nil
 }
 func (m *mockQuerier) GetReplicatedDictionaryItem(ctx context.Context, id pgtype.UUID) (db.ReplicatedDataDictionary, error) {
 	return db.ReplicatedDataDictionary{}, nil
@@ -98,6 +141,12 @@ func (m *mockQuerier) ListReplicatedDictionary(ctx context.Context, organization
 }
 func (m *mockQuerier) InsertOutboxEvent(ctx context.Context, arg db.InsertOutboxEventParams) error {
 	return nil
+}
+func (m *mockQuerier) ListAssessmentAnswers(ctx context.Context, assessmentID pgtype.UUID) ([]db.AssessmentAnswer, error) {
+	return nil, nil
+}
+func (m *mockQuerier) UpsertAssessmentAnswer(ctx context.Context, arg db.UpsertAssessmentAnswerParams) (db.AssessmentAnswer, error) {
+	return db.AssessmentAnswer{}, nil
 }
 
 var _ db.Querier = (*mockQuerier)(nil)

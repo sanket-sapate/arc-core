@@ -31,6 +31,7 @@ func RegisterRoutes(e *echo.Echo, dict service.DictionaryService, scan service.S
 	// ── Scan Jobs ──────────────────────────────────────────────────────────
 	sg := e.Group("/scans")
 	sg.POST("", triggerScanHandler(scan, logger))
+	sg.POST("/trigger", TriggerScanProxyHandler(scanner, logger))
 	sg.POST("/network", networkScanHandler(scan, logger))
 	sg.GET("/:id", getScanJobHandler(scan, logger))
 

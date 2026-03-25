@@ -1,40 +1,38 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { api } from '~/lib/api';
+import { CookieScanSchema, ScannedCookieSchema } from '../types';
 
-// ── Schemas ──────────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
-export const ScannedCookieSchema = z.object({
-    id: z.string().uuid(),
-    scan_id: z.string().uuid(),
-    name: z.string(),
-    domain: z.string().nullable(),
-    path: z.string().nullable(),
-    value: z.string().nullable(),
-    expiration: z.string().nullable(),
-    secure: z.boolean(),
-    http_only: z.boolean(),
-    same_site: z.string().nullable(),
-    source: z.string(),
-    category: z.string(),
-    description: z.string().nullable(),
-    created_at: z.string(),
+const transformCookieScan = (item: any) => ({
+    id: item.ID,
+    tenant_id: item.TenantID,
+    url: item.Url,
+    status: item.Status,
+    error: item.Error,
+    started_at: item.StartedAt,
+    completed_at: item.CompletedAt,
+    created_at: item.CreatedAt,
+    updated_at: item.UpdatedAt,
 });
 
-export const CookieScanSchema = z.object({
-    id: z.string().uuid(),
-    tenant_id: z.string().uuid(),
-    url: z.string(),
-    status: z.enum(['pending', 'running', 'completed', 'failed']),
-    error: z.string().nullable(),
-    started_at: z.string().nullable(),
-    completed_at: z.string().nullable(),
-    created_at: z.string(),
-    updated_at: z.string(),
+const transformScannedCookie = (item: any) => ({
+    id: item.ID,
+    scan_id: item.ScanID,
+    name: item.Name,
+    domain: item.Domain,
+    path: item.Path,
+    value: item.Value,
+    expiration: item.Expiration,
+    secure: item.Secure,
+    http_only: item.HttpOnly,
+    same_site: item.SameSite,
+    source: item.Source,
+    category: item.Category,
+    description: item.Description,
+    created_at: item.CreatedAt,
 });
-
-export type ScannedCookie = z.infer<typeof ScannedCookieSchema>;
-export type CookieScan = z.infer<typeof CookieScanSchema>;
 
 // ── Hooks ────────────────────────────────────────────────────────────────────
 
@@ -43,7 +41,8 @@ export const useCookieScans = () =>
         queryKey: ['cookie-scans'],
         queryFn: async () => {
             const { data } = await api.get('/api/cookie-scanner/scans');
-            return z.array(CookieScanSchema).parse(data ?? []);
+            const transformed = (data ?? []).map(transformCookieScan);
+            return z.array(CookieScanSchema).parse(transformed);
         },
         refetchInterval: (q) => {
             // Refetch every 3s if any scan is pending or running
@@ -57,10 +56,16 @@ export const useCookieScanDetails = (scanId: string | null) =>
         queryKey: ['cookie-scans', scanId],
         queryFn: async () => {
             const { data } = await api.get(`/api/cookie-scanner/scans/${scanId}`);
+
+            const transformed = {
+                scan: transformCookieScan(data.scan),
+                cookies: (data.cookies ?? []).map(transformScannedCookie),
+            };
+
             return z.object({
                 scan: CookieScanSchema,
                 cookies: z.array(ScannedCookieSchema),
-            }).parse(data);
+            }).parse(transformed);
         },
         enabled: !!scanId,
         refetchInterval: (q) => {
@@ -73,10 +78,24 @@ export const useStartCookieScan = () => {
     return useMutation({
         mutationFn: async (url: string) => {
             const { data } = await api.post('/api/cookie-scanner/scans', { url });
-            return CookieScanSchema.parse(data);
+            return CookieScanSchema.parse(transformCookieScan(data));
         },
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['cookie-scans'] });
         },
     });
 };
+
+export const useRescanCookieScan = () => {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (scanId: string) => {
+            const { data } = await api.post(`/api/cookie-scanner/scans/${scanId}/rescan`);
+            return CookieScanSchema.parse(transformCookieScan(data));
+        },
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ['cookie-scans'] });
+        },
+    });
+};
+

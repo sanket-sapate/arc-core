@@ -55,3 +55,17 @@ export function useUpdateRole() {
     });
 }
 
+export function useUpdateRolePermissions() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ id, permission_ids }: { id: string; permission_ids: string[] }) => {
+            const { data } = await api.put(`/api/iam/roles/${id}/permissions`, { permission_ids });
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ROLE_KEYS.all });
+        },
+    });
+}
+

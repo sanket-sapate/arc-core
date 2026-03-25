@@ -54,30 +54,45 @@ func main() {
 	}
 
 	// ── Vault Secret Loading ───────────────────────────────────────────────
-	vaultAddr := os.Getenv("VAULT_ADDR")
-	if vaultAddr == "" {
-		vaultAddr = "http://localhost:8200"
-	}
-	vaultToken := os.Getenv("VAULT_TOKEN")
-	if vaultToken == "" {
-		vaultToken = "root"
-	}
-	secretPath := os.Getenv("VAULT_SECRET_PATH")
-	if secretPath == "" {
-		secretPath = "secret/data/arc/public-api-service"
-	}
+	var redisURL, natsURL string
+	
+	// Check if Redis and NATS URLs are provided via environment variables first
+	if envRedisURL := os.Getenv("REDIS_URL"); envRedisURL != "" {
+		redisURL = envRedisURL
+		if envNatsURL := os.Getenv("NATS_URL"); envNatsURL != "" {
+			natsURL = envNatsURL
+			logger.Info("Using Redis and NATS URLs from environment variables")
+		} else {
+			logger.Fatal("REDIS_URL provided but NATS_URL is missing")
+		}
+	} else {
+		// Fall back to Vault
+		vaultAddr := os.Getenv("VAULT_ADDR")
+		if vaultAddr == "" {
+			vaultAddr = "http://localhost:8200"
+		}
+		vaultToken := os.Getenv("VAULT_TOKEN")
+		if vaultToken == "" {
+			vaultToken = "root"
+		}
+		secretPath := os.Getenv("VAULT_SECRET_PATH")
+		if secretPath == "" {
+			secretPath = "secret/data/arc/public-api-service"
+		}
 
-	vaultManager, err := config.NewSecretManager(vaultAddr, vaultToken)
-	if err != nil {
-		logger.Fatal("Vault connection failed", zap.Error(err))
-	}
-	secrets, err := vaultManager.GetKV2(secretPath)
-	if err != nil {
-		logger.Fatal("Failed to load secrets from Vault", zap.Error(err))
-	}
+		vaultManager, err := config.NewSecretManager(vaultAddr, vaultToken)
+		if err != nil {
+			logger.Fatal("Vault connection failed", zap.Error(err))
+		}
+		defer vaultManager.Close()
+		secrets, err := vaultManager.GetKV2(secretPath)
+		if err != nil {
+			logger.Fatal("Failed to load secrets from Vault", zap.Error(err))
+		}
 
-	redisURL := secrets["REDIS_URL"].(string)
-	natsURL := secrets["NATS_URL"].(string)
+		redisURL = secrets["REDIS_URL"].(string)
+		natsURL = secrets["NATS_URL"].(string)
+	}
 
 	// ── Redis Client ───────────────────────────────────────────────────────
 	// Used exclusively for banner reads — no writes.
@@ -123,6 +138,7 @@ func main() {
 			echo.HeaderContentType,
 			echo.HeaderAccept,
 			"X-Organization-ID",
+			"X-API-Key",
 		},
 		MaxAge: 3600,
 	}))

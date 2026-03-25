@@ -7,6 +7,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	"github.com/arc-self/apps/privacy-service/internal/service"
+	coreMw "github.com/arc-self/packages/go-core/middleware"
 )
 
 // ── Shared error response helper ─────────────────────────────────────────
@@ -48,6 +49,9 @@ func (h *CookieBannerHandler) Register(e *echo.Echo) {
 }
 
 func (h *CookieBannerHandler) Create(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "consents.create") {
+		return errResponse(c, http.StatusForbidden, "missing consents.create permission")
+	}
 	var input service.CreateCookieBannerInput
 	if err := c.Bind(&input); err != nil {
 		return errResponse(c, http.StatusBadRequest, "invalid request body")
@@ -60,6 +64,9 @@ func (h *CookieBannerHandler) Create(c echo.Context) error {
 }
 
 func (h *CookieBannerHandler) Get(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "consents.read") {
+		return errResponse(c, http.StatusForbidden, "missing consents.read permission")
+	}
 	b, err := h.svc.Get(c.Request().Context(), c.Param("id"))
 	if err != nil {
 		return handleSvcError(c, err)
@@ -68,6 +75,9 @@ func (h *CookieBannerHandler) Get(c echo.Context) error {
 }
 
 func (h *CookieBannerHandler) List(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "consents.read") {
+		return errResponse(c, http.StatusForbidden, "missing consents.read permission")
+	}
 	banners, err := h.svc.List(c.Request().Context())
 	if err != nil {
 		return handleSvcError(c, err)
@@ -76,6 +86,9 @@ func (h *CookieBannerHandler) List(c echo.Context) error {
 }
 
 func (h *CookieBannerHandler) Update(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "consents.update") {
+		return errResponse(c, http.StatusForbidden, "missing consents.update permission")
+	}
 	var input service.UpdateCookieBannerInput
 	if err := c.Bind(&input); err != nil {
 		return errResponse(c, http.StatusBadRequest, "invalid request body")
@@ -88,6 +101,9 @@ func (h *CookieBannerHandler) Update(c echo.Context) error {
 }
 
 func (h *CookieBannerHandler) Delete(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "consents.delete") {
+		return errResponse(c, http.StatusForbidden, "missing consents.delete permission")
+	}
 	if err := h.svc.Delete(c.Request().Context(), c.Param("id")); err != nil {
 		return handleSvcError(c, err)
 	}
@@ -111,6 +127,9 @@ func (h *PurposeHandler) Register(e *echo.Echo) {
 }
 
 func (h *PurposeHandler) Create(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "consents.create") {
+		return errResponse(c, http.StatusForbidden, "missing consents.create permission")
+	}
 	var input service.CreatePurposeInput
 	if err := c.Bind(&input); err != nil {
 		return errResponse(c, http.StatusBadRequest, "invalid request body")
@@ -123,6 +142,9 @@ func (h *PurposeHandler) Create(c echo.Context) error {
 }
 
 func (h *PurposeHandler) Get(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "consents.read") {
+		return errResponse(c, http.StatusForbidden, "missing consents.read permission")
+	}
 	p, err := h.svc.Get(c.Request().Context(), c.Param("id"))
 	if err != nil {
 		return handleSvcError(c, err)
@@ -131,6 +153,9 @@ func (h *PurposeHandler) Get(c echo.Context) error {
 }
 
 func (h *PurposeHandler) List(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "consents.read") {
+		return errResponse(c, http.StatusForbidden, "missing consents.read permission")
+	}
 	ps, err := h.svc.List(c.Request().Context())
 	if err != nil {
 		return handleSvcError(c, err)
@@ -139,6 +164,9 @@ func (h *PurposeHandler) List(c echo.Context) error {
 }
 
 func (h *PurposeHandler) Update(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "consents.update") {
+		return errResponse(c, http.StatusForbidden, "missing consents.update permission")
+	}
 	var input service.UpdatePurposeInput
 	if err := c.Bind(&input); err != nil {
 		return errResponse(c, http.StatusBadRequest, "invalid request body")
@@ -167,6 +195,9 @@ func (h *ConsentFormHandler) Register(e *echo.Echo) {
 }
 
 func (h *ConsentFormHandler) Create(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "consents.create") {
+		return errResponse(c, http.StatusForbidden, "missing consents.create permission")
+	}
 	var input service.CreateConsentFormInput
 	if err := c.Bind(&input); err != nil {
 		return errResponse(c, http.StatusBadRequest, "invalid request body")
@@ -179,6 +210,9 @@ func (h *ConsentFormHandler) Create(c echo.Context) error {
 }
 
 func (h *ConsentFormHandler) Get(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "consents.read") {
+		return errResponse(c, http.StatusForbidden, "missing consents.read permission")
+	}
 	f, err := h.svc.Get(c.Request().Context(), c.Param("id"))
 	if err != nil {
 		return handleSvcError(c, err)
@@ -187,6 +221,9 @@ func (h *ConsentFormHandler) Get(c echo.Context) error {
 }
 
 func (h *ConsentFormHandler) List(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "consents.read") {
+		return errResponse(c, http.StatusForbidden, "missing consents.read permission")
+	}
 	fs, err := h.svc.List(c.Request().Context())
 	if err != nil {
 		return handleSvcError(c, err)
@@ -195,6 +232,9 @@ func (h *ConsentFormHandler) List(c echo.Context) error {
 }
 
 func (h *ConsentFormHandler) Update(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "consents.update") {
+		return errResponse(c, http.StatusForbidden, "missing consents.update permission")
+	}
 	var input service.UpdateConsentFormInput
 	if err := c.Bind(&input); err != nil {
 		return errResponse(c, http.StatusBadRequest, "invalid request body")
@@ -221,6 +261,9 @@ func (h *DPIAHandler) Register(e *echo.Echo) {
 }
 
 func (h *DPIAHandler) Create(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "dpia.create") {
+		return errResponse(c, http.StatusForbidden, "missing dpia.create permission")
+	}
 	var input service.CreateDPIAInput
 	if err := c.Bind(&input); err != nil {
 		return errResponse(c, http.StatusBadRequest, "invalid request body")
@@ -233,6 +276,9 @@ func (h *DPIAHandler) Create(c echo.Context) error {
 }
 
 func (h *DPIAHandler) Get(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "dpia.read") {
+		return errResponse(c, http.StatusForbidden, "missing dpia.read permission")
+	}
 	d, err := h.svc.Get(c.Request().Context(), c.Param("id"))
 	if err != nil {
 		return handleSvcError(c, err)
@@ -241,6 +287,9 @@ func (h *DPIAHandler) Get(c echo.Context) error {
 }
 
 func (h *DPIAHandler) List(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "dpia.read") {
+		return errResponse(c, http.StatusForbidden, "missing dpia.read permission")
+	}
 	ds, err := h.svc.List(c.Request().Context())
 	if err != nil {
 		return handleSvcError(c, err)
@@ -249,6 +298,9 @@ func (h *DPIAHandler) List(c echo.Context) error {
 }
 
 func (h *DPIAHandler) Update(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "dpia.update") {
+		return errResponse(c, http.StatusForbidden, "missing dpia.update permission")
+	}
 	var input service.UpdateDPIAInput
 	if err := c.Bind(&input); err != nil {
 		return errResponse(c, http.StatusBadRequest, "invalid request body")
@@ -275,6 +327,9 @@ func (h *ROPAHandler) Register(e *echo.Echo) {
 }
 
 func (h *ROPAHandler) Create(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "ropa.create") {
+		return errResponse(c, http.StatusForbidden, "missing ropa.create permission")
+	}
 	var input service.CreateROPAInput
 	if err := c.Bind(&input); err != nil {
 		return errResponse(c, http.StatusBadRequest, "invalid request body")
@@ -287,6 +342,9 @@ func (h *ROPAHandler) Create(c echo.Context) error {
 }
 
 func (h *ROPAHandler) Get(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "ropa.read") {
+		return errResponse(c, http.StatusForbidden, "missing ropa.read permission")
+	}
 	r, err := h.svc.Get(c.Request().Context(), c.Param("id"))
 	if err != nil {
 		return handleSvcError(c, err)
@@ -295,6 +353,9 @@ func (h *ROPAHandler) Get(c echo.Context) error {
 }
 
 func (h *ROPAHandler) List(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "ropa.read") {
+		return errResponse(c, http.StatusForbidden, "missing ropa.read permission")
+	}
 	rs, err := h.svc.List(c.Request().Context())
 	if err != nil {
 		return handleSvcError(c, err)
@@ -303,6 +364,9 @@ func (h *ROPAHandler) List(c echo.Context) error {
 }
 
 func (h *ROPAHandler) Update(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "ropa.update") {
+		return errResponse(c, http.StatusForbidden, "missing ropa.update permission")
+	}
 	var input service.UpdateROPAInput
 	if err := c.Bind(&input); err != nil {
 		return errResponse(c, http.StatusBadRequest, "invalid request body")
@@ -331,6 +395,9 @@ func (h *PrivacyRequestHandler) Register(e *echo.Echo) {
 }
 
 func (h *PrivacyRequestHandler) Create(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "dsr.create") {
+		return errResponse(c, http.StatusForbidden, "missing dsr.create permission")
+	}
 	var input service.CreatePrivacyRequestInput
 	if err := c.Bind(&input); err != nil {
 		return errResponse(c, http.StatusBadRequest, "invalid request body")
@@ -343,6 +410,9 @@ func (h *PrivacyRequestHandler) Create(c echo.Context) error {
 }
 
 func (h *PrivacyRequestHandler) Get(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "dsr.read") {
+		return errResponse(c, http.StatusForbidden, "missing dsr.read permission")
+	}
 	req, err := h.svc.Get(c.Request().Context(), c.Param("id"))
 	if err != nil {
 		return handleSvcError(c, err)
@@ -351,6 +421,9 @@ func (h *PrivacyRequestHandler) Get(c echo.Context) error {
 }
 
 func (h *PrivacyRequestHandler) List(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "dsr.read") {
+		return errResponse(c, http.StatusForbidden, "missing dsr.read permission")
+	}
 	reqs, err := h.svc.List(c.Request().Context())
 	if err != nil {
 		return handleSvcError(c, err)
@@ -359,6 +432,9 @@ func (h *PrivacyRequestHandler) List(c echo.Context) error {
 }
 
 func (h *PrivacyRequestHandler) Update(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "dsr.update") {
+		return errResponse(c, http.StatusForbidden, "missing dsr.update permission")
+	}
 	var input service.UpdatePrivacyRequestInput
 	if err := c.Bind(&input); err != nil {
 		return errResponse(c, http.StatusBadRequest, "invalid request body")
@@ -385,6 +461,9 @@ func (h *GrievanceHandler) Register(e *echo.Echo) {
 }
 
 func (h *GrievanceHandler) Create(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "dsr.create") {
+		return errResponse(c, http.StatusForbidden, "missing dsr.create permission")
+	}
 	var input service.CreateGrievanceInput
 	if err := c.Bind(&input); err != nil {
 		return errResponse(c, http.StatusBadRequest, "invalid request body")
@@ -397,6 +476,9 @@ func (h *GrievanceHandler) Create(c echo.Context) error {
 }
 
 func (h *GrievanceHandler) Get(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "dsr.read") {
+		return errResponse(c, http.StatusForbidden, "missing dsr.read permission")
+	}
 	r, err := h.svc.Get(c.Request().Context(), c.Param("id"))
 	if err != nil {
 		return handleSvcError(c, err)
@@ -405,6 +487,9 @@ func (h *GrievanceHandler) Get(c echo.Context) error {
 }
 
 func (h *GrievanceHandler) List(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "dsr.read") {
+		return errResponse(c, http.StatusForbidden, "missing dsr.read permission")
+	}
 	rs, err := h.svc.List(c.Request().Context())
 	if err != nil {
 		return handleSvcError(c, err)
@@ -413,6 +498,9 @@ func (h *GrievanceHandler) List(c echo.Context) error {
 }
 
 func (h *GrievanceHandler) Update(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "dsr.update") {
+		return errResponse(c, http.StatusForbidden, "missing dsr.update permission")
+	}
 	var input service.UpdateGrievanceInput
 	if err := c.Bind(&input); err != nil {
 		return errResponse(c, http.StatusBadRequest, "invalid request body")

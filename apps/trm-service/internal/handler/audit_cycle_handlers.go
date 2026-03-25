@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/arc-self/apps/trm-service/internal/service"
+	coreMw "github.com/arc-self/packages/go-core/middleware"
 )
 
 type createAuditCycleRequest struct {
@@ -19,6 +20,9 @@ type createAuditCycleRequest struct {
 
 func createAuditCycleHandler(svc service.AuditCycleService, logger *zap.Logger) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		if !coreMw.HasPermission(c.Request().Context(), "audit_cycles.create") {
+			return c.JSON(http.StatusForbidden, errResp("missing audit_cycles.create permission"))
+		}
 		var req createAuditCycleRequest
 		if err := c.Bind(&req); err != nil {
 			return c.JSON(http.StatusBadRequest, errResp("invalid request body"))
@@ -39,6 +43,9 @@ func createAuditCycleHandler(svc service.AuditCycleService, logger *zap.Logger) 
 
 func listAuditCyclesHandler(svc service.AuditCycleService, logger *zap.Logger) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		if !coreMw.HasPermission(c.Request().Context(), "audit_cycles.read") {
+			return c.JSON(http.StatusForbidden, errResp("missing audit_cycles.read permission"))
+		}
 		items, err := svc.ListAuditCycles(c.Request().Context())
 		if err != nil {
 			logger.Error("ListAuditCycles failed", zap.Error(err))
@@ -50,6 +57,9 @@ func listAuditCyclesHandler(svc service.AuditCycleService, logger *zap.Logger) e
 
 func getAuditCycleHandler(svc service.AuditCycleService, _ *zap.Logger) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		if !coreMw.HasPermission(c.Request().Context(), "audit_cycles.read") {
+			return c.JSON(http.StatusForbidden, errResp("missing audit_cycles.read permission"))
+		}
 		ac, err := svc.GetAuditCycle(c.Request().Context(), c.Param("id"))
 		if err != nil {
 			return c.JSON(http.StatusNotFound, errResp(err.Error()))
@@ -60,6 +70,9 @@ func getAuditCycleHandler(svc service.AuditCycleService, _ *zap.Logger) echo.Han
 
 func updateAuditCycleHandler(svc service.AuditCycleService, logger *zap.Logger) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		if !coreMw.HasPermission(c.Request().Context(), "audit_cycles.update") {
+			return c.JSON(http.StatusForbidden, errResp("missing audit_cycles.update permission"))
+		}
 		var req createAuditCycleRequest
 		if err := c.Bind(&req); err != nil {
 			return c.JSON(http.StatusBadRequest, errResp("invalid request body"))
@@ -80,6 +93,9 @@ func updateAuditCycleHandler(svc service.AuditCycleService, logger *zap.Logger) 
 
 func deleteAuditCycleHandler(svc service.AuditCycleService, logger *zap.Logger) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		if !coreMw.HasPermission(c.Request().Context(), "audit_cycles.delete") {
+			return c.JSON(http.StatusForbidden, errResp("missing audit_cycles.delete permission"))
+		}
 		if err := svc.DeleteAuditCycle(c.Request().Context(), c.Param("id")); err != nil {
 			logger.Error("DeleteAuditCycle failed", zap.Error(err))
 			return c.JSON(http.StatusInternalServerError, errResp(err.Error()))

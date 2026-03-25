@@ -11,7 +11,7 @@ export const SourceSchema = z.object({
     status: z.string().optional(),
     worker_group: z.string().optional(),
     created_at: z.string().optional(),
-    configuration: z.record(z.unknown()).optional(),
+    configuration: z.record(z.string(), z.unknown()).optional(),
 });
 export type Source = z.infer<typeof SourceSchema>;
 

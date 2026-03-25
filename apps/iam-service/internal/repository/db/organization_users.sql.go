@@ -11,6 +11,23 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const addUserRole = `-- name: AddUserRole :exec
+INSERT INTO user_organization_roles (user_id, organization_id, role_id)
+VALUES ($1, $2, $3)
+ON CONFLICT (user_id, organization_id, role_id) DO NOTHING
+`
+
+type AddUserRoleParams struct {
+	UserID         pgtype.UUID
+	OrganizationID pgtype.UUID
+	RoleID         pgtype.UUID
+}
+
+func (q *Queries) AddUserRole(ctx context.Context, arg AddUserRoleParams) error {
+	_, err := q.db.Exec(ctx, addUserRole, arg.UserID, arg.OrganizationID, arg.RoleID)
+	return err
+}
+
 const listOrganizationUsers = `-- name: ListOrganizationUsers :many
 SELECT
     u.id,
@@ -74,19 +91,18 @@ func (q *Queries) RemoveUserFromOrganization(ctx context.Context, arg RemoveUser
 	return err
 }
 
-const updateUserRole = `-- name: UpdateUserRole :exec
-UPDATE user_organization_roles
-SET role_id = $3
-WHERE user_id = $1 AND organization_id = $2
+const removeUserRole = `-- name: RemoveUserRole :exec
+DELETE FROM user_organization_roles
+WHERE user_id = $1 AND organization_id = $2 AND role_id = $3
 `
 
-type UpdateUserRoleParams struct {
+type RemoveUserRoleParams struct {
 	UserID         pgtype.UUID
 	OrganizationID pgtype.UUID
 	RoleID         pgtype.UUID
 }
 
-func (q *Queries) UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) error {
-	_, err := q.db.Exec(ctx, updateUserRole, arg.UserID, arg.OrganizationID, arg.RoleID)
+func (q *Queries) RemoveUserRole(ctx context.Context, arg RemoveUserRoleParams) error {
+	_, err := q.db.Exec(ctx, removeUserRole, arg.UserID, arg.OrganizationID, arg.RoleID)
 	return err
 }

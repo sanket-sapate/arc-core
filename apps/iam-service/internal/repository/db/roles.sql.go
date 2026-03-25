@@ -95,16 +95,17 @@ func (q *Queries) InsertRolePermission(ctx context.Context, arg InsertRolePermis
 }
 
 const listRolesForOrganization = `-- name: ListRolesForOrganization :many
-SELECT id, name, created_at
+SELECT id, name, description, created_at
 FROM roles
 WHERE organization_id = $1
 ORDER BY name
 `
 
 type ListRolesForOrganizationRow struct {
-	ID        pgtype.UUID
-	Name      string
-	CreatedAt pgtype.Timestamptz
+	ID          pgtype.UUID
+	Name        string
+	Description string
+	CreatedAt   pgtype.Timestamptz
 }
 
 func (q *Queries) ListRolesForOrganization(ctx context.Context, organizationID pgtype.UUID) ([]ListRolesForOrganizationRow, error) {
@@ -116,7 +117,12 @@ func (q *Queries) ListRolesForOrganization(ctx context.Context, organizationID p
 	var items []ListRolesForOrganizationRow
 	for rows.Next() {
 		var i ListRolesForOrganizationRow
-		if err := rows.Scan(&i.ID, &i.Name, &i.CreatedAt); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Description,
+			&i.CreatedAt,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

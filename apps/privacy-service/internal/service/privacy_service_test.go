@@ -66,7 +66,7 @@ func TestCookieBannerService_Get_Success(t *testing.T) {
 			Active:         pgtype.Bool{Bool: true, Valid: true},
 		}, nil)
 
-	svc := service.NewCookieBannerService(nil, q)
+	svc := service.NewCookieBannerService(nil, nil, q)
 	banner, err := svc.Get(ctxWithOrg(orgStr), bannerIDStr)
 
 	require.NoError(t, err)
@@ -88,7 +88,7 @@ func TestCookieBannerService_Get_NotFound(t *testing.T) {
 		}).
 		Return(db.CookieBanner{}, errors.New("no rows"))
 
-	svc := service.NewCookieBannerService(nil, q)
+	svc := service.NewCookieBannerService(nil, nil, q)
 	_, err := svc.Get(ctxWithOrg(orgStr), bannerIDStr)
 
 	require.Error(t, err)
@@ -96,7 +96,7 @@ func TestCookieBannerService_Get_NotFound(t *testing.T) {
 }
 
 func TestCookieBannerService_Get_InvalidID(t *testing.T) {
-	svc := service.NewCookieBannerService(nil, nil)
+	svc := service.NewCookieBannerService(nil, nil, nil)
 	_, err := svc.Get(ctxWithOrg(uuid.New().String()), "not-a-uuid")
 
 	require.Error(t, err)
@@ -104,7 +104,7 @@ func TestCookieBannerService_Get_InvalidID(t *testing.T) {
 }
 
 func TestCookieBannerService_Get_MissingOrgID(t *testing.T) {
-	svc := service.NewCookieBannerService(nil, nil)
+	svc := service.NewCookieBannerService(nil, nil, nil)
 	_, err := svc.Get(context.Background(), uuid.New().String())
 
 	require.Error(t, err)
@@ -125,7 +125,7 @@ func TestCookieBannerService_List_Success(t *testing.T) {
 			{Domain: "b.com"},
 		}, nil)
 
-	svc := service.NewCookieBannerService(nil, q)
+	svc := service.NewCookieBannerService(nil, nil, q)
 	banners, err := svc.List(ctxWithOrg(orgStr))
 
 	require.NoError(t, err)
@@ -134,7 +134,7 @@ func TestCookieBannerService_List_Success(t *testing.T) {
 }
 
 func TestCookieBannerService_List_MissingOrgID(t *testing.T) {
-	svc := service.NewCookieBannerService(nil, nil)
+	svc := service.NewCookieBannerService(nil, nil, nil)
 	_, err := svc.List(context.Background())
 
 	require.Error(t, err)
@@ -154,11 +154,11 @@ func TestPurposeService_Create_Success(t *testing.T) {
 	q := mock.NewMockQuerier(ctrl)
 	q.EXPECT().
 		CreatePurpose(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(_ context.Context, arg db.CreatePurposeParams) (db.Purpose, error) {
+		DoAndReturn(func(_ context.Context, arg db.CreatePurposeParams) (db.CreatePurposeRow, error) {
 			assert.Equal(t, orgPG, arg.OrganizationID)
 			assert.Equal(t, "Marketing", arg.Name)
 			assert.Equal(t, "Consent", arg.LegalBasis.String)
-			return db.Purpose{
+			return db.CreatePurposeRow{
 				ID:             arg.ID,
 				OrganizationID: orgPG,
 				Name:           arg.Name,
@@ -205,7 +205,7 @@ func TestPurposeService_Get_Success(t *testing.T) {
 	q := mock.NewMockQuerier(ctrl)
 	q.EXPECT().
 		GetPurpose(gomock.Any(), db.GetPurposeParams{ID: purposeIDPG, OrganizationID: orgPG}).
-		Return(db.Purpose{ID: purposeIDPG, OrganizationID: orgPG, Name: "Analytics"}, nil)
+		Return(db.GetPurposeRow{ID: purposeIDPG, OrganizationID: orgPG, Name: "Analytics"}, nil)
 
 	svc := service.NewPurposeService(nil, q)
 	p, err := svc.Get(ctxWithOrg(orgStr), purposeIDStr)
@@ -224,11 +224,11 @@ func TestPurposeService_Update_Success(t *testing.T) {
 	q := mock.NewMockQuerier(ctrl)
 	q.EXPECT().
 		UpdatePurpose(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(_ context.Context, arg db.UpdatePurposeParams) (db.Purpose, error) {
+		DoAndReturn(func(_ context.Context, arg db.UpdatePurposeParams) (db.UpdatePurposeRow, error) {
 			assert.Equal(t, orgPG, arg.OrganizationID)
 			assert.Equal(t, purposeIDPG, arg.ID)
 			assert.Equal(t, "Updated Name", arg.Name)
-			return db.Purpose{ID: purposeIDPG, Name: arg.Name}, nil
+			return db.UpdatePurposeRow{ID: purposeIDPG, Name: arg.Name}, nil
 		})
 
 	svc := service.NewPurposeService(nil, q)

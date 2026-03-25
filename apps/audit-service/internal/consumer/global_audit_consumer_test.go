@@ -142,22 +142,18 @@ func TestGlobalAuditConsumer_ProcessEvent_InvalidActorID_NonFatal(t *testing.T) 
 	require.NoError(t, err) // invalid actor should NOT poison-pill
 }
 
-func TestGlobalAuditConsumer_ProcessEvent_EmptyOrgID_Accepted(t *testing.T) {
-	// Empty org_id is treated as zero-value UUID (best-effort for legacy events).
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
+func TestGlobalAuditConsumer_ProcessEvent_EmptyOrgID_Dropped(t *testing.T) {
+	// Empty org_id events are now dropped (errUnresolvableOrgID) to avoid
+	// NOT NULL constraint violations in the audit_logs table.
 	ev := validGlobalEvent()
 	ev.OrganizationID = ""
 
-	q := mock.NewMockQuerier(ctrl)
-	q.EXPECT().InsertAuditLog(gomock.Any(), gomock.Any()).Return(nil)
-
-	c := NewGlobalAuditConsumer(nil, q, zaptest.NewLogger(t))
+	c := NewGlobalAuditConsumer(nil, nil, zaptest.NewLogger(t))
 	data := buildGlobalEvent(t, ev)
 
 	err := c.processEvent(context.Background(), data, "DOMAIN_EVENTS.iam.x", "iam")
-	require.NoError(t, err)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, errUnresolvableOrgID)
 }
 
 func TestGlobalAuditConsumer_ProcessEvent_DBError_IsTransient(t *testing.T) {

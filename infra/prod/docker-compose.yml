@@ -45,8 +45,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
       interval: 5s
@@ -65,6 +65,7 @@ services:
 
   vault:
     image: hashicorp/vault:latest
+    init: true
     <<: *service-defaults
     user: root
     # chown the data dir (Docker named volumes are root-owned by default)
@@ -166,6 +167,14 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
       PORTAL_JWT_SECRET: ${PORTAL_JWT_SECRET}
 
+  public-api-service:
+    <<: *go-service
+    image: arc/public-api-service:${IMAGE_TAG:-latest}
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
+      REDIS_URL: redis://redis:6379
+      NATS_URL: nats://nats:4222
+
   cookie-scanner:
     <<: *go-service
     image: arc/cookie-scanner:${IMAGE_TAG:-latest}
@@ -184,6 +193,24 @@ services:
       VAULT_SECRET_PATH: ${VAULT_SECRET_PATH_PREFIX}/cdc-worker
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
 
+  frontend:
+    <<: *service-defaults
+    build:
+      context: ../../apps/frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: https://api.demo.arcompli.com
+        VITE_KEYCLOAK_URL: https://api.demo.arcompli.com/realms/arc
+        VITE_CALLBACK_URL: https://demo.arcompli.com/auth/callback
+        VITE_KEYCLOAK_CLIENT_ID: arc-frontend
+        VITE_ARC_ORG_ID: ${ARC_ORG_ID:-your-staging-org-id}
+        VITE_PUBLIC_API_URL: https://api.demo.arcompli.com
+    image: arc/frontend:${IMAGE_TAG:-latest}
+    ports:
+      - "3003:80"
+    depends_on:
+      - apisix
+
   # ── Keycloak ────────────────────────────────────────────────────────────────
   keycloak:
     image: arc/keycloak:${IMAGE_TAG:-latest}
@@ -196,6 +223,11 @@ services:
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       KC_SPI_EVENTS_LISTENER_HTTP_SERVER_URI: http://iam-service:8080/webhooks/keycloak
       KC_SPI_EVENTS_LISTENER_HTTP_SHARED_SECRET: ${WEBHOOK_PSK}
+      # ── Reverse proxy / hostname settings ──
+      KC_HOSTNAME: "https://api.demo.arcompli.com"
+      KC_HOSTNAME_STRICT: "true"
+      # Absolute hard limits to prevent over-allocation on 24GB node
+      JAVA_OPTS_APPEND: "-Xms2g -Xmx4g"
     volumes:
       - ../local/keycloak_realm/arc-realm.json:/opt/keycloak/data/import/arc-realm.json:ro
     depends_on:
@@ -207,6 +239,12 @@ services:
     <<: *service-defaults
     environment:
       COLLECTOR_OTLP_ENABLED: "true"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
   # ── APISIX gateway — THE ONLY PORT EXPOSED TO THE HOST ─────────────────────
   apisix-go-runner:
@@ -232,8 +270,8 @@ services:
       - "9080:9080"
       - "9443:9443"
     volumes:
-      - ../local/apisix_conf/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
-      - ../local/apisix_conf/config.yaml:/usr/local/apisix/conf/config.yaml:ro
+      - ./apisix_conf/apisix.yaml:/usr/local/apisix/conf/apisix.yaml:ro
+      - ./apisix_conf/config.yaml:/usr/local/apisix/conf/config.yaml:ro
       - runner_sock:/tmp
     depends_on:
       - apisix-go-runner

@@ -222,6 +222,8 @@ func (p *Authz) RequestFilter(conf interface{}, w http.ResponseWriter, r pkgHTTP
 		grpcCtx, cancel := context.WithTimeout(ctx, 2000*time.Millisecond)
 		defer cancel()
 
+		log.Infof("authz: calling IAM gRPC - userId=%s orgId=%s permission=%s", userID, orgID, permissionSlug)
+
 		resp, err := iamClient.EvaluateAccess(grpcCtx, &pb.EvaluateAccessRequest{
 			UserId:         userID,
 			OrganizationId: orgID,
@@ -235,6 +237,7 @@ func (p *Authz) RequestFilter(conf interface{}, w http.ResponseWriter, r pkgHTTP
 			return
 		}
 
+		log.Infof("authz: IAM gRPC response - allowed=%t permissions=%v", resp.Allowed, resp.Permissions)
 		allowed = resp.Allowed
 		if len(resp.Permissions) > 0 {
 			permissions = strings.Join(resp.Permissions, ",")
@@ -267,6 +270,7 @@ func (p *Authz) RequestFilter(conf interface{}, w http.ResponseWriter, r pkgHTTP
 	r.Header().Set("X-Internal-Org-Id", orgID)
 	r.Header().Set("X-Internal-Permissions", permissions)
 
+	log.Infof("authz: injected headers - userId=%s orgId=%s perms=%s", userID, orgID, permissions)
 	log.Infof("authz: user=%s org=%s slug=%s permissions=%s -> allowed", userID, orgID, permissionSlug, permissions)
 }
 

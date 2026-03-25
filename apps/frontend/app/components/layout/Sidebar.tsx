@@ -14,9 +14,9 @@ import {
     ClipboardCheck,
     FileSignature,
     Users,
-    KeyRound,
     History,
     ChevronRight,
+    LogOut,
 } from 'lucide-react';
 import {
     Sidebar,
@@ -39,6 +39,7 @@ import {
     CollapsibleTrigger,
 } from '~/components/ui/collapsible';
 import { useSessionStore } from '~/store/session';
+import { useAuth } from 'react-oidc-context';
 
 // ── Navigation data ────────────────────────────────────────────────────────
 
@@ -52,49 +53,50 @@ interface NavItem {
 const mainNav: NavItem[] = [
     {
         title: 'Dashboard',
-        href: '/',
+        href: '/app/dashboard',
         icon: LayoutDashboard,
     },
     {
         title: 'Data Intelligence',
         icon: Search,
         children: [
-            { title: 'Dashboard', href: '/data-intelligence/discovery' },
-            { title: 'Cookie Scanner', href: '/data-intelligence/cookie-scanner' },
-            { title: 'Data Sources', href: '/data-intelligence/sources' },
-            { title: 'Scan History', href: '/data-intelligence/jobs' },
-            // { title: 'Profiles & Rules', href: '/data-intelligence/profiles' },
-            { title: 'Data Dictionary', href: '/data-intelligence/dictionary' },
+            { title: 'Dashboard', href: '/app/data-intelligence/discovery' },
+            { title: 'Cookie Scanner', href: '/app/data-intelligence/cookie-scanner' },
+            { title: 'Data Sources', href: '/app/data-intelligence/sources' },
+            { title: 'Scan History', href: '/app/data-intelligence/jobs' },
+            // { title: 'Profiles & Rules', href: '/app/data-intelligence/profiles' },
+            { title: 'Data Dictionary', href: '/app/data-intelligence/dictionary' },
+            { title: 'Classification Review', href: '/app/data-intelligence/mapping' },
         ],
     },
     {
         title: 'Consent Management',
         icon: Cookie,
         children: [
-            { title: 'Cookie Banners', href: '/consent/banners' },
-            { title: 'Purposes', href: '/consent/purposes' },
-            { title: 'Consent Forms', href: '/consent/forms' },
-            { title: 'Script Blocking', href: '/consent/script-blocking' },
+            { title: 'Cookie Banners', href: '/app/consent/banners' },
+            { title: 'Purposes', href: '/app/consent/purposes' },
+            { title: 'Consent Forms', href: '/app/consent/forms' },
+            { title: 'Script Blocking', href: '/app/consent/script-blocking' },
         ],
     },
     {
         title: 'Privacy Operations',
         icon: ShieldAlert,
         children: [
-            { title: 'ROPA', href: '/privacy-ops/ropa' },
-            { title: 'DPIAs', href: '/privacy-ops/dpia' },
-            { title: 'Subject Requests', href: '/privacy-ops/dsr' },
-            { title: 'Breaches', href: '/privacy-ops/breaches' },
+            { title: 'ROPA', href: '/app/privacy-ops/ropa' },
+            { title: 'DPIAs', href: '/app/privacy-ops/dpia' },
+            { title: 'Subject Requests', href: '/app/privacy-ops/dsr' },
+            { title: 'Breaches', href: '/app/privacy-ops/breaches' },
         ],
     },
     {
         title: 'Third-Party Risk',
         icon: Building2,
         children: [
-            { title: 'Vendors', href: '/third-party-risk/vendors' },
-            { title: 'Assessments', href: '/third-party-risk/assessments' },
-            { title: 'Frameworks', href: '/third-party-risk/frameworks' },
-            { title: 'DPAs', href: '/third-party-risk/dpas' },
+            { title: 'Vendors', href: '/app/third-party-risk/vendors' },
+            { title: 'Assessments', href: '/app/third-party-risk/assessments' },
+            { title: 'Frameworks', href: '/app/third-party-risk/frameworks' },
+            { title: 'DPAs', href: '/app/third-party-risk/dpas' },
         ],
     },
 ];
@@ -104,10 +106,11 @@ const adminNav: NavItem[] = [
         title: 'Administration',
         icon: Users,
         children: [
-            { title: 'Users & Roles', href: '/admin/access' },
-            { title: 'API Keys', href: '/admin/developer' },
-            { title: 'Integrations', href: '/settings/integrations' },
-            { title: 'Audit Logs', href: '/admin/audit' },
+            { title: 'Users & Roles', href: '/app/admin/access' },
+            { title: 'Roles & Permissions', href: '/app/settings/roles' },
+            { title: 'API Keys', href: '/app/admin/developer' },
+            { title: 'Integrations', href: '/app/settings/integrations' },
+            { title: 'Audit Logs', href: '/app/admin/audit' },
         ],
     },
 ];
@@ -117,6 +120,10 @@ const adminNav: NavItem[] = [
 export function AppSidebar() {
     const org = useSessionStore((s) => s.activeOrganization);
     const location = useLocation();
+    const auth = useAuth();
+    const navigate = (path: string) => {
+        window.location.href = path;
+    };
 
     /** True when any child route is active */
     const isGroupActive = (items: { href: string }[]) =>
@@ -235,7 +242,31 @@ export function AppSidebar() {
             </SidebarContent>
 
             <SidebarFooter className="border-t border-sidebar-border px-4 py-2">
-                <p className="truncate text-xs text-muted-foreground">© 2026 ARC Platform</p>
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton
+                            className="w-full justify-start text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50"
+                            onClick={() => {
+                                if (window.location.pathname.startsWith('/portal')) {
+                                    // Portal Logout: Clear Magic Link session and redirect
+                                    document.cookie = 'auth_token=; Max-Age=0; path=/;';
+                                    localStorage.removeItem('portal_user');
+                                    navigate('/portal/login');
+                                } else {
+                                    // Admin Logout: Trigger Keycloak OIDC flow
+                                    auth.removeUser();
+                                    auth.signoutRedirect({ post_logout_redirect_uri: window.location.origin + '/app' });
+                                }
+                            }}
+                        >
+                            <LogOut className="mr-2 h-4 w-4" />
+                            <span>Log out</span>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+                <div className="mt-2 text-center w-full">
+                    <p className="truncate text-xs text-muted-foreground">© 2026 ARC Platform</p>
+                </div>
             </SidebarFooter>
 
             <SidebarRail />

@@ -22,4 +22,4 @@ WHERE id = $1 AND organization_id = $2;
 -- name: GetApiKeyByHash :one
 SELECT id, organization_id, name, key_prefix, created_by, revoked, expires_at, created_at
 FROM api_keys
-WHERE key_hash = $1 AND revoked = false;
+WHERE key_hash = $1 AND revoked = false AND (expires_at IS NULL OR expires_at > NOW());

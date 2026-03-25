@@ -78,6 +78,11 @@ RETURNING *;
 SELECT * FROM dpas
 WHERE id = $1 AND organization_id = $2;
 
+-- name: ListDPAs :many
+SELECT * FROM dpas
+WHERE organization_id = $1
+ORDER BY created_at DESC;
+
 -- name: ListDPAsByVendor :many
 SELECT * FROM dpas
 WHERE vendor_id = $1 AND organization_id = $2
@@ -88,6 +93,10 @@ UPDATE dpas
 SET status = $3, signed_at = $4, updated_at = NOW()
 WHERE id = $1 AND organization_id = $2
 RETURNING *;
+
+-- name: DeleteDPA :exec
+DELETE FROM dpas
+WHERE id = $1 AND organization_id = $2;
 
 -- name: AddDPADataScope :exec
 INSERT INTO dpa_data_scope (dpa_id, dictionary_id, justification)

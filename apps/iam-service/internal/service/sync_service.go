@@ -52,12 +52,21 @@ func (s *SyncService) SyncUser(ctx context.Context, keycloakUserID string, email
 		return fmt.Errorf("invalid keycloak user ID %q: %w", keycloakUserID, err)
 	}
 
-	_, err := s.querier.UpsertUser(ctx, db.UpsertUserParams{
+	upsertedUser, err := s.querier.UpsertUser(ctx, db.UpsertUserParams{
 		ID:    userID,
 		Email: email,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to upsert user: %w", err)
+	}
+
+	// Log if email was changed during upsert (existing user with different email)
+	if upsertedUser.Email != email {
+		s.logger.Warn("user email changed during sync",
+			zap.String("user_id", keycloakUserID),
+			zap.String("old_email", upsertedUser.Email),
+			zap.String("new_email", email),
+		)
 	}
 
 	s.logger.Info("user synced",

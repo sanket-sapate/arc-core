@@ -8,6 +8,7 @@ import (
 	"github.com/labstack/echo/v4"
 
 	db "github.com/arc-self/apps/privacy-service/internal/repository/db"
+	coreMw "github.com/arc-self/packages/go-core/middleware"
 )
 
 type BreachesHandler struct {
@@ -55,6 +56,9 @@ func (h *BreachesHandler) getOrgID(c echo.Context) (pgtype.UUID, error) {
 }
 
 func (h *BreachesHandler) List(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "breaches.read") {
+		return errResponse(c, http.StatusForbidden, "missing breaches.read permission")
+	}
 	orgID, err := h.getOrgID(c)
 	if err != nil {
 		return err
@@ -69,6 +73,9 @@ func (h *BreachesHandler) List(c echo.Context) error {
 }
 
 func (h *BreachesHandler) Get(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "breaches.read") {
+		return errResponse(c, http.StatusForbidden, "missing breaches.read permission")
+	}
 	orgID, err := h.getOrgID(c)
 	if err != nil {
 		return err
@@ -91,6 +98,9 @@ func (h *BreachesHandler) Get(c echo.Context) error {
 }
 
 func (h *BreachesHandler) Create(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "breaches.create") {
+		return errResponse(c, http.StatusForbidden, "missing breaches.create permission")
+	}
 	orgID, err := h.getOrgID(c)
 	if err != nil {
 		return err
@@ -118,6 +128,9 @@ func (h *BreachesHandler) Create(c echo.Context) error {
 }
 
 func (h *BreachesHandler) Update(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "breaches.update") {
+		return errResponse(c, http.StatusForbidden, "missing breaches.update permission")
+	}
 	orgID, err := h.getOrgID(c)
 	if err != nil {
 		return err
@@ -151,6 +164,9 @@ func (h *BreachesHandler) Update(c echo.Context) error {
 }
 
 func (h *BreachesHandler) Delete(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "breaches.delete") {
+		return errResponse(c, http.StatusForbidden, "missing breaches.delete permission")
+	}
 	orgID, err := h.getOrgID(c)
 	if err != nil {
 		return err

@@ -43,7 +43,7 @@ export function ConsentFormEditor({ initialData, onSubmit, isLoading }: ConsentF
         },
     });
 
-    const integrationSnippet = `<script src="https://cdn.arc-grc.com/widget.js?formId=${initialData?.id || 'save-to-generate-id'}"></script>`;
+    const integrationSnippet = `<script src="${window.location.origin}/widget.js?formId=${initialData?.id || 'save-to-generate-id'}"></script>`;
 
     const handleCopy = () => {
         navigator.clipboard.writeText(integrationSnippet);

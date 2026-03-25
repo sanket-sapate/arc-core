@@ -42,21 +42,21 @@ export default function PortalNominee() {
     };
 
     return (
-        <div className="min-h-screen flex flex-col bg-slate-50">
+        <div className="min-h-screen flex flex-col bg-background">
             <Header />
             <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-8 space-y-8">
-                <h1 className="text-3xl font-bold tracking-tight text-slate-900">Nominee Registration</h1>
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">Nominee Registration</h1>
 
                 <PortalNav />
 
-                <Card className="bg-white shadow-sm border-slate-200">
+                <Card className="bg-card shadow-sm border">
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div className="space-y-1">
-                            <CardTitle>Your Authorized Nominees</CardTitle>
+                            <CardTitle className="text-foreground">Your Authorized Nominees</CardTitle>
                         </div>
                         <Dialog open={open} onOpenChange={setOpen}>
                             <DialogTrigger asChild>
-                                <Button className="bg-indigo-600 hover:bg-indigo-700">
+                                <Button className="bg-primary hover:bg-primary/90">
                                     <Plus className="w-4 h-4 mr-2" /> Register Nominee
                                 </Button>
                             </DialogTrigger>
@@ -105,12 +105,12 @@ export default function PortalNominee() {
                     </CardHeader>
                     <CardContent>
                         {isLoading ? (
-                            <p className="text-sm text-slate-500 animate-pulse">Loading nominees...</p>
+                            <p className="text-sm text-muted-foreground animate-pulse">Loading nominees...</p>
                         ) : nominees?.length === 0 ? (
-                            <div className="p-12 text-center text-slate-500 border-dashed border-2 rounded-xl border-slate-200">
-                                <UserCheck className="w-12 h-12 mx-auto text-slate-300 mb-4" />
-                                <p className="text-lg font-medium text-slate-600">No Nominees Registered</p>
-                                <p className="text-sm mt-1">You haven't registered any authorized representatives.</p>
+                            <div className="p-12 text-center text-muted-foreground border-dashed border-2 rounded-xl border-border">
+                                <UserCheck className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
+                                <p className="text-lg font-medium text-foreground">No Nominees Registered</p>
+                                <p className="text-sm mt-1 text-muted-foreground">You haven't registered any authorized representatives.</p>
                             </div>
                         ) : (
                             <div className="rounded-md border">
@@ -125,16 +125,16 @@ export default function PortalNominee() {
                                     <TableBody>
                                         {nominees?.map((n) => (
                                             <TableRow key={n.id}>
-                                                <TableCell className="font-medium text-slate-800">{n.nominee_name}</TableCell>
-                                                <TableCell className="text-slate-600">{n.nominee_email}</TableCell>
-                                                <TableCell className="text-slate-600">{n.nominee_relation}</TableCell>
+                                                <TableCell className="font-medium text-foreground">{n.nominee_name}</TableCell>
+                                                <TableCell className="text-muted-foreground">{n.nominee_email}</TableCell>
+                                                <TableCell className="text-muted-foreground">{n.nominee_relation}</TableCell>
                                                 <TableCell>
                                                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium uppercase
-                            ${n.status === 'accepted' ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-800'}`}>
+                            ${n.status === 'accepted' ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200' : 'bg-muted text-muted-foreground'}`}>
                                                         {n.status}
                                                     </span>
                                                 </TableCell>
-                                                <TableCell className="text-slate-500 text-sm">{new Date(n.created_at).toLocaleDateString()}</TableCell>
+                                                <TableCell className="text-muted-foreground text-sm">{new Date(n.created_at).toLocaleDateString()}</TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>

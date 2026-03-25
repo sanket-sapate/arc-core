@@ -3,6 +3,7 @@ package consumer
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -38,12 +39,14 @@ type AuditConsumer struct {
 //
 // Fixes: FLAW-1.1 (UUID zero-value), FLAW-1.2 (base64-encoded payload).
 type OutboxEvent struct {
-	ID            string          `json:"id"`
-	AggregateType string          `json:"aggregate_type"`
-	AggregateID   string          `json:"aggregate_id"`
-	ActorID       string          `json:"actor_id"`
-	Type          string          `json:"type"`
-	Payload       json.RawMessage `json:"payload"`
+	ID             string          `json:"id"`
+	OrganizationID string          `json:"organization_id"`
+	AggregateType  string          `json:"aggregate_type"`
+	AggregateID    string          `json:"aggregate_id"`
+	ActorID        string          `json:"actor_id"`
+	EventType      string          `json:"event_type"`
+	Type           string          `json:"type"` // legacy fallback
+	Payload        json.RawMessage `json:"payload"`
 }
 
 // NewAuditConsumer creates a new consumer bound to the given NATS client and DB querier.
@@ -93,6 +96,12 @@ func (c *AuditConsumer) Start(ctx context.Context) error {
 	return nil
 }
 
+// errUnresolvableOrgID is returned when neither "organization_id" nor the
+// legacy "tenant_id" key can be resolved from the event payload.  Messages
+// that trigger this are ACK'd (dropped) rather than NAK'd so they do not
+// cause an infinite retry loop.
+var errUnresolvableOrgID = fmt.Errorf("unresolvable organization_id")
+
 // processMessage handles NATS acknowledgment based on the result of processEvent.
 // This separation allows processEvent to be tested without a live NATS connection.
 func (c *AuditConsumer) processMessage(ctx context.Context, msg *nats.Msg) {
@@ -100,6 +109,13 @@ func (c *AuditConsumer) processMessage(ctx context.Context, msg *nats.Msg) {
 	if err != nil {
 		if err.Error() == "malformed payload" {
 			msg.Term() // Terminate poison pill — don't redeliver
+			return
+		}
+		if errors.Is(err, errUnresolvableOrgID) {
+			c.logger.Warn("dropping event with unresolvable organization_id",
+				zap.Error(err),
+			)
+			msg.Ack() // Dead-letter: ACK so it leaves the queue
 			return
 		}
 		msg.Nak() // Requeue for retry
@@ -152,14 +168,38 @@ func (c *AuditConsumer) processEvent(ctx context.Context, data []byte) error {
 	)
 	defer span.End()
 
-	// organization_id may not be present in legacy events — zero UUID is acceptable.
+	// organization_id resolution:
+	// 1. Top-level OrganizationID from the NATS envelope (set by CDC worker from outbox_events.organization_id)
+	// 2. Fallback: "organization_id" or legacy "tenant_id" inside the payload JSON
 	var orgID pgtype.UUID
-	// Best-effort: extract from payload if the producing service embedded it.
-	var payloadMap map[string]interface{}
-	if err := json.Unmarshal(event.Payload, &payloadMap); err == nil {
-		if oid, ok := payloadMap["organization_id"].(string); ok && oid != "" {
-			orgID, _ = parseStringUUID(oid)
+	oidStr := event.OrganizationID
+	if oidStr == "" {
+		var payloadMap map[string]interface{}
+		if err := json.Unmarshal(event.Payload, &payloadMap); err == nil {
+			oidStr, _ = payloadMap["organization_id"].(string)
+			if oidStr == "" {
+				oidStr, _ = payloadMap["tenant_id"].(string)
+			}
 		}
+	}
+	if oidStr != "" {
+		orgID, _ = parseStringUUID(oidStr)
+	}
+
+	// If organization_id is still unresolvable, do NOT attempt the DB insert.
+	// Returning errUnresolvableOrgID causes processMessage to ACK (dead-letter)
+	// instead of NAK (infinite retry), preventing the crash loop.
+	if !orgID.Valid {
+		c.logger.Warn("event has no resolvable organization_id or tenant_id, dropping",
+			zap.String("event_id", event.ID),
+			zap.String("type", event.Type),
+		)
+		return fmt.Errorf("%w: event_id=%s", errUnresolvableOrgID, event.ID)
+	}
+
+	eventType := event.EventType
+	if eventType == "" {
+		eventType = event.Type // legacy fallback
 	}
 
 	err = c.querier.InsertAuditLog(ctx, db.InsertAuditLogParams{
@@ -168,7 +208,7 @@ func (c *AuditConsumer) processEvent(ctx context.Context, data []byte) error {
 		SourceService:  "legacy", // this consumer handles un-routed outbox.> messages
 		AggregateType:  event.AggregateType,
 		AggregateID:    aggregateID,
-		EventType:      event.Type,
+		EventType:      eventType,
 		Payload:        []byte(event.Payload), // json.RawMessage → []byte: zero-copy, correct JSONB value
 		ActorID:        actorID,
 		CreatedAt:      time.Now().UTC(),

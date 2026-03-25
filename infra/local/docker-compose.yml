@@ -54,6 +54,8 @@ services:
       # Webhook Event Listener SPI configuration
       KC_SPI_EVENTS_LISTENER_HTTP_SERVER_URI: http://iam-service:8080/webhooks/keycloak
       KC_SPI_EVENTS_LISTENER_HTTP_SHARED_SECRET: dev-psk-change-me
+      # Absolute hard limits to prevent over-allocation on 24GB node
+      JAVA_OPTS_APPEND: "-Xms1g -Xmx2g"
     ports:
       - "8080:8080"
     volumes:
@@ -175,6 +177,24 @@ services:
     volumes:
       - ../../:/workspace
     working_dir: /workspace/apps/trm-service
+    command: ["go", "run", "./cmd/api"]
+    depends_on:
+      - postgres
+      - nats
+      - vault
+      - jaeger
+    logging: *default-logging
+
+  privacy-service:
+    image: golang:1.26
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: root
+      VAULT_SECRET_PATH: secret/data/arc/privacy-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: jaeger:4317
+    volumes:
+      - ../../:/workspace
+    working_dir: /workspace/apps/privacy-service
     command: ["go", "run", "./cmd/api"]
     depends_on:
       - postgres

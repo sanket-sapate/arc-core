@@ -1,0 +1,24 @@
+deployment:
+  role: data_plane
+  role_data_plane:
+    config_provider: yaml
+
+apisix:
+  node_listen: 9080
+  enable_ipv6: false
+  enable_admin: false
+
+plugins:
+  - proxy-rewrite
+  - response-rewrite
+  - cors
+  - limit-count
+  - ext-plugin-pre-req
+  - serverless-pre-function
+  - serverless-post-function
+
+ext-plugin:
+  path_for_test: /tmp/runner.sock
+
+stream_plugins:
+  - mqtt-proxy

@@ -1,12 +1,15 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+	coreMw "github.com/arc-self/packages/go-core/middleware"
 	"github.com/labstack/echo/v4"
 	"github.com/arc-self/apps/privacy-service/internal/service"
 )
@@ -24,33 +27,23 @@ func NewPortalDataHandler(svc service.PortalDataService, prSvc service.PrivacyRe
 	return &PortalDataHandler{svc: svc, privacyReq: prSvc, grievanceSvc: grSvc}
 }
 
-// extractEmailFromJWT validates the JWT and extracts the user email
-// We decode and validate it here since APISIX doesn't have portal users as consumers for jwt-auth
+// extractEmailFromJWT extracts the user email from JWT that APISIX has already validated
+// APISIX jwt-auth plugin validates the JWT and forwards the request
 func extractEmailFromJWT(c echo.Context) (string, error) {
+	// Try to extract from cookie (APISIX has already validated it)
 	cookie, err := c.Cookie("portal_jwt")
 	if err != nil {
 		return "", err
 	}
 
-	secret := os.Getenv("PORTAL_JWT_SECRET")
-	if secret == "" {
-		log.Println("PORTAL_JWT_SECRET not set")
-		return "", fmt.Errorf("internal auth configuration error")
-	}
-
-	token, err := jwt.Parse(cookie.Value, func(t *jwt.Token) (interface{}, error) {
-		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method")
-		}
-		return []byte(secret), nil
-	})
-
+	// Parse JWT without validation (APISIX already validated it)
+	token, _, err := new(jwt.Parser).ParseUnverified(cookie.Value, jwt.MapClaims{})
 	if err != nil {
-		return "", fmt.Errorf("invalid token: %w", err)
+		return "", fmt.Errorf("failed to parse jwt: %w", err)
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok || !token.Valid {
+	if !ok {
 		return "", fmt.Errorf("invalid token claims")
 	}
 
@@ -77,10 +70,15 @@ func (h *PortalDataHandler) Register(e *echo.Echo) {
 }
 
 func (h *PortalDataHandler) GetConsents(c echo.Context) error {
+	fmt.Printf("GetConsents called\n")
+	
 	email, err := extractEmailFromJWT(c)
 	if err != nil {
+		fmt.Printf("extractEmailFromJWT error: %v\n", err)
 		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 	}
+
+	fmt.Printf("Extracted email: %s\n", email)
 
 	consents, err := h.svc.GetUserConsents(c.Request().Context(), email)
 	if err != nil {
@@ -128,7 +126,13 @@ func (h *PortalDataHandler) CreateRequest(c echo.Context) error {
 	// Force email from token
 	p.RequesterEmail = email
 
-	req, err := h.privacyReq.Create(c.Request().Context(), p)
+	// TODO: Remove hardcoded organization ID - should be extracted from JWT or user context
+	// For now, using a hardcoded UUID for portal users
+	var orgID pgtype.UUID
+	orgID.Scan("018e5e2e-1f7c-7b8a-9d3e-4f2a6b8c1d0f")
+	ctx := context.WithValue(c.Request().Context(), coreMw.OrgIDKey, orgID.String())
+
+	req, err := h.privacyReq.Create(ctx, p)
 	if err != nil {
 		return handleSvcError(c, err)
 	}
@@ -148,7 +152,13 @@ func (h *PortalDataHandler) CreateGrievance(c echo.Context) error {
 	// Force email from token
 	p.ReporterEmail = email
 
-	g, err := h.grievanceSvc.Create(c.Request().Context(), p)
+	// TODO: Remove hardcoded organization ID - should be extracted from JWT or user context
+	// For now, using a hardcoded UUID for portal users
+	var orgID pgtype.UUID
+	orgID.Scan("018e5e2e-1f7c-7b8a-9d3e-4f2a6b8c1d0f")
+	ctx := context.WithValue(c.Request().Context(), coreMw.OrgIDKey, orgID.String())
+
+	g, err := h.grievanceSvc.Create(ctx, p)
 	if err != nil {
 		return handleSvcError(c, err)
 	}

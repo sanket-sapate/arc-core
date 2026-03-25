@@ -35,3 +35,39 @@ func GetOrgID(ctx context.Context) (string, bool) {
 	v, ok := ctx.Value(OrgIDKey).(string)
 	return v, ok
 }
+
+// GetPermissions extracts the comma-separated permission slugs from the context.
+func GetPermissions(ctx context.Context) (string, bool) {
+	v, ok := ctx.Value(PermissionsKey).(string)
+	return v, ok
+}
+
+// HasPermission checks if the user has a specific permission slug.
+// Permissions are stored as a comma-separated string in the context.
+func HasPermission(ctx context.Context, requiredPermission string) bool {
+	perms, ok := GetPermissions(ctx)
+	if !ok || perms == "" {
+		return false
+	}
+	
+	// Simple string search - permissions are comma-separated
+	// e.g., "vendors.read,vendors.create,assessments.read"
+	for i := 0; i < len(perms); {
+		// Find the next comma or end of string
+		end := i
+		for end < len(perms) && perms[end] != ',' {
+			end++
+		}
+		
+		// Extract permission slug
+		perm := perms[i:end]
+		if perm == requiredPermission {
+			return true
+		}
+		
+		// Move to next permission (skip comma)
+		i = end + 1
+	}
+	
+	return false
+}

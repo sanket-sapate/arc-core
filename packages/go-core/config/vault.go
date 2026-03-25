@@ -1,14 +1,18 @@
 package config
 
 import (
+	"context"
 	"fmt"
+	"net/http"
+	"time"
 
 	"github.com/hashicorp/vault/api"
 )
 
 // SecretManager wraps the Vault API client for reading secrets.
 type SecretManager struct {
-	client *api.Client
+	client    *api.Client
+	transport *http.Transport // retained for Close()
 }
 
 // NewSecretManager creates a Vault client pointed at the given address
@@ -17,13 +21,48 @@ func NewSecretManager(address, token string) (*SecretManager, error) {
 	cfg := api.DefaultConfig()
 	cfg.Address = address
 
+	// Use an explicit transport so we can close idle connections on shutdown,
+	// preventing the keep-alive goroutines from becoming zombies.
+	transport := &http.Transport{
+		MaxIdleConns:        10,
+		IdleConnTimeout:     30 * time.Second,
+		TLSHandshakeTimeout: 10 * time.Second,
+	}
+	cfg.HttpClient = &http.Client{
+		Transport: transport,
+		Timeout:   30 * time.Second,
+	}
+
 	client, err := api.NewClient(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("vault client initialization failed: %w", err)
 	}
 	client.SetToken(token)
 
-	return &SecretManager{client: client}, nil
+	return &SecretManager{client: client, transport: transport}, nil
+}
+
+// NewSecretManagerWithContext is like NewSecretManager but ties the client
+// lifecycle to the given context.  When ctx is cancelled the idle connections
+// are drained automatically, eliminating zombie keep-alive goroutines.
+func NewSecretManagerWithContext(ctx context.Context, address, token string) (*SecretManager, error) {
+	sm, err := NewSecretManager(address, token)
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		<-ctx.Done()
+		sm.Close()
+	}()
+	return sm, nil
+}
+
+// Close drains idle connections on the underlying HTTP transport.
+// Call this during service shutdown (or use NewSecretManagerWithContext).
+func (s *SecretManager) Close() {
+	if s.transport != nil {
+		s.transport.CloseIdleConnections()
+	}
 }
 
 // GetSecret reads a secret at the given path and returns the raw data map.

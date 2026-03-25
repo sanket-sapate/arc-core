@@ -1,5 +1,5 @@
 -- name: ListRolesForOrganization :many
-SELECT id, name, created_at
+SELECT id, name, description, created_at
 FROM roles
 WHERE organization_id = $1
 ORDER BY name;

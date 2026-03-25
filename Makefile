@@ -72,7 +72,7 @@ migrate-down: migrate-trm-down migrate-discovery-down migrate-audit-down migrate
 # ═══════════════════════════════════════════════════════════
 # Run Services
 # ═══════════════════════════════════════════════════════════
-.PHONY: run-abc run-def run-iam run-audit run-cdc run-privacy run-discovery run-trm
+.PHONY: run-abc run-def run-iam run-audit run-cdc run-privacy run-discovery run-trm run-frontend
 
 run-abc:
 	go run apps/abc-service/cmd/api/main.go
@@ -97,6 +97,9 @@ run-discovery:
 
 run-trm:
 	go run apps/trm-service/cmd/api/main.go
+
+run-frontend:
+	cd apps/frontend && npm run dev
 
 # ═══════════════════════════════════════════════════════════
 # Tests
@@ -260,6 +263,7 @@ IMAGE_TAG   ?= latest
 
 ## prod-build: build all Docker images (run before prod-up or prod-init)
 prod-build:
+	@test -f infra/prod/.env.prod || (echo "ERROR: copy infra/prod/.env.example to infra/prod/.env.prod and fill in values" && exit 1)
 	@echo "Building images (tag: $(IMAGE_TAG))..."
 	docker build --build-arg SERVICE=iam-service       --build-arg CMD=api    -t arc/iam-service:$(IMAGE_TAG)       .
 	docker build --build-arg SERVICE=audit-service     --build-arg CMD=api    -t arc/audit-service:$(IMAGE_TAG)     .
@@ -267,6 +271,15 @@ prod-build:
 	docker build --build-arg SERVICE=trm-service       --build-arg CMD=api    -t arc/trm-service:$(IMAGE_TAG)       .
 	docker build --build-arg SERVICE=privacy-service   --build-arg CMD=api    -t arc/privacy-service:$(IMAGE_TAG)   .
 	docker build --build-arg SERVICE=cdc-worker        --build-arg CMD=worker -t arc/cdc-worker:$(IMAGE_TAG)        .
+	docker build --build-arg SERVICE=cookie-scanner    --build-arg CMD=api    -t arc/cookie-scanner:$(IMAGE_TAG)    .
+	. infra/prod/.env.prod && docker build \
+		--build-arg VITE_API_URL="$${VITE_API_URL}" \
+		--build-arg VITE_KEYCLOAK_URL="$${VITE_KEYCLOAK_URL}" \
+		--build-arg VITE_CALLBACK_URL="$${VITE_CALLBACK_URL}" \
+		--build-arg VITE_KEYCLOAK_CLIENT_ID="$${VITE_KEYCLOAK_CLIENT_ID}" \
+		--build-arg VITE_ARC_ORG_ID="$${VITE_ARC_ORG_ID}" \
+		--build-arg VITE_PUBLIC_API_URL="$${VITE_PUBLIC_API_URL}" \
+		-f apps/frontend/Dockerfile -t arc/frontend:$(IMAGE_TAG) apps/frontend
 	docker build --build-arg SERVICE=apisix-go-runner  \
 	             --build-arg BUILD_PATH=./packages/apisix-go-runner/cmd/go-runner \
 	             -t arc/apisix-go-runner:$(IMAGE_TAG)  .
@@ -299,8 +312,10 @@ prod-up:
 	@echo ""
 	@echo "═══════════════════════════════════════════════════"
 	@echo "  ✓  Arc production stack is up!"
-	@echo "  Gateway: http://<your-server-ip>:9080"
-	@echo "  Keycloak: http://<your-server-ip>:8090"
+	@. infra/prod/.env.prod && \
+	echo "  Frontend: $${VITE_CALLBACK_URL%/auth/callback}" && \
+	echo "  Gateway:  $${VITE_API_URL}" && \
+	echo "  Keycloak: $${VITE_KEYCLOAK_URL}"
 	@echo "═══════════════════════════════════════════════════"
 
 

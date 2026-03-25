@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -24,7 +25,7 @@ func NewApiKeysHandler(q db.Querier, logger *zap.Logger) *ApiKeysHandler {
 }
 
 func (h *ApiKeysHandler) Register(e *echo.Echo) {
-	g := e.Group("/api-keys")
+	g := e.Group("/api/iam/api-keys")
 	g.GET("", h.ListApiKeys)
 	g.POST("", h.CreateApiKey)
 	g.DELETE("/:id", h.RevokeApiKey)
@@ -74,10 +75,10 @@ type CreateApiKeyRequest struct {
 	ExpiresIn int    `json:"expires_in_days"` // e.g. 30, 90, 365, or 0 for never
 }
 
-func generateSecureToken() (string, string) {
+func generateSecureToken() (string, string, error) {
 	bytes := make([]byte, 32)
 	if _, err := rand.Read(bytes); err != nil {
-		panic(err)
+		return "", "", fmt.Errorf("CSPRNG failure: %w", err)
 	}
 	secret := hex.EncodeToString(bytes)
 	rawKey := "arc_" + secret
@@ -86,7 +87,7 @@ func generateSecureToken() (string, string) {
 	hasher.Write([]byte(rawKey))
 	keyHash := hex.EncodeToString(hasher.Sum(nil))
 
-	return rawKey, keyHash
+	return rawKey, keyHash, nil
 }
 
 func (h *ApiKeysHandler) CreateApiKey(c echo.Context) error {
@@ -115,7 +116,11 @@ func (h *ApiKeysHandler) CreateApiKey(c echo.Context) error {
 	}
 
 	// Generate the token
-	rawKey, keyHash := generateSecureToken()
+	rawKey, keyHash, err := generateSecureToken()
+	if err != nil {
+		h.logger.Error("failed to generate secure token", zap.Error(err))
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to generate api key"})
+	}
 	prefix := rawKey[:8] + "..." + rawKey[len(rawKey)-4:]
 
 	// Try to get creator ID from APISIX header

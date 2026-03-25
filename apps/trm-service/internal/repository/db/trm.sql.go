@@ -179,6 +179,21 @@ func (q *Queries) CreateVendor(ctx context.Context, arg CreateVendorParams) (Ven
 	return i, err
 }
 
+const deleteDPA = `-- name: DeleteDPA :exec
+DELETE FROM dpas
+WHERE id = $1 AND organization_id = $2
+`
+
+type DeleteDPAParams struct {
+	ID             pgtype.UUID
+	OrganizationID pgtype.UUID
+}
+
+func (q *Queries) DeleteDPA(ctx context.Context, arg DeleteDPAParams) error {
+	_, err := q.db.Exec(ctx, deleteDPA, arg.ID, arg.OrganizationID)
+	return err
+}
+
 const deleteReplicatedDictionary = `-- name: DeleteReplicatedDictionary :exec
 DELETE FROM replicated_data_dictionary
 WHERE id = $1
@@ -462,6 +477,40 @@ func (q *Queries) ListDPADataScope(ctx context.Context, dpaID pgtype.UUID) ([]Li
 			&i.Justification,
 			&i.DictName,
 			&i.Sensitivity,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDPAs = `-- name: ListDPAs :many
+SELECT id, organization_id, vendor_id, status, signed_at, created_at, updated_at FROM dpas
+WHERE organization_id = $1
+ORDER BY created_at DESC
+`
+
+func (q *Queries) ListDPAs(ctx context.Context, organizationID pgtype.UUID) ([]Dpa, error) {
+	rows, err := q.db.Query(ctx, listDPAs, organizationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Dpa
+	for rows.Next() {
+		var i Dpa
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrganizationID,
+			&i.VendorID,
+			&i.Status,
+			&i.SignedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}

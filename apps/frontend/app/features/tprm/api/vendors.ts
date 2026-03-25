@@ -5,13 +5,14 @@ import type { Vendor } from '../types/vendor';
 const mapVendor = (v: any): Vendor => ({
     id: v.ID || v.id,
     name: v.Name || v.name || "",
+    contact_email: v.ContactEmail || v.contact_email || "",
     description: v.Description || v.description || "",
     website: v.Website || v.website || "",
     risk_level: v.RiskLevel || v.risk_level || "medium",
     compliance_status: v.ComplianceStatus || v.compliance_status || "under_review",
     active: v.Active ?? v.active ?? true,
-    requires_dpa: false, // UI only flag on creation, backend doesn't return this
-    requires_assessment: false, // UI only flag on creation, backend doesn't return this
+    requires_dpa: false,
+    requires_assessment: false,
     created_at: v.CreatedAt || v.created_at,
     updated_at: v.UpdatedAt || v.updated_at,
 });
@@ -24,12 +25,9 @@ export const getVendors = async (): Promise<Vendor[]> => {
 export const createVendor = async (vendor: Vendor): Promise<Vendor> => {
     const payload = {
         name: vendor.name,
-        contact_email: vendor.website, // Backend wants contact_email, we'll map website to it for now based on prompt constraints or just pass as is if proxy resolves it. Let's send what the backend expects but keep UI simple.
+        contact_email: vendor.contact_email || "",
         compliance_status: vendor.compliance_status,
         risk_level: vendor.risk_level,
-        description: vendor.description,
-        active: vendor.active,
-        website: vendor.website
     };
     const { data } = await api.post('/api/trm/vendors', payload);
     return mapVendor(data);
@@ -38,12 +36,9 @@ export const createVendor = async (vendor: Vendor): Promise<Vendor> => {
 export const updateVendor = async ({ id, vendor }: { id: string; vendor: Vendor }): Promise<Vendor> => {
     const payload = {
         name: vendor.name,
-        contact_email: vendor.website,
+        contact_email: vendor.contact_email || "",
         compliance_status: vendor.compliance_status,
         risk_level: vendor.risk_level,
-        description: vendor.description,
-        active: vendor.active,
-        website: vendor.website
     };
     const { data } = await api.put(`/api/trm/vendors/${id}`, payload);
     return mapVendor(data);
@@ -91,9 +86,9 @@ export const createVendorDPA = async (vendorId: string) => {
     return api.post(`/api/trm/vendors/${vendorId}/dpas`, {});
 };
 
-export const createVendorAssessment = async (vendorId: string) => {
+export const createVendorAssessment = async (vendorId: string, frameworkId: string) => {
     return api.post(`/api/trm/vendors/${vendorId}/assessments`, {
-        // Assume default framework or status from backend, pass empty for now.
-        status: "pending"
+        framework_id: frameworkId,
+        status: "draft",
     });
 };

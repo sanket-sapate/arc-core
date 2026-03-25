@@ -41,21 +41,21 @@ export default function PortalGrievances() {
     };
 
     return (
-        <div className="min-h-screen flex flex-col bg-slate-50">
+        <div className="min-h-screen flex flex-col bg-background">
             <Header />
             <main className="flex-1 w-full max-w-6xl mx-auto px-4 py-8 space-y-8">
-                <h1 className="text-3xl font-bold tracking-tight text-slate-900">Privacy Grievances</h1>
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">Privacy Grievances</h1>
 
                 <PortalNav />
 
-                <Card className="bg-white shadow-sm border-slate-200">
+                <Card className="bg-card shadow-sm border">
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div className="space-y-1">
-                            <CardTitle>Your Grievances</CardTitle>
+                            <CardTitle className="text-foreground">Your Grievances</CardTitle>
                         </div>
                         <Dialog open={open} onOpenChange={setOpen}>
                             <DialogTrigger asChild>
-                                <Button className="bg-amber-600 hover:bg-amber-700">
+                                <Button className="bg-amber-600 hover:bg-amber-700 dark:bg-amber-700 dark:hover:bg-amber-600">
                                     <Plus className="w-4 h-4 mr-2" /> File Grievance
                                 </Button>
                             </DialogTrigger>
@@ -85,7 +85,7 @@ export default function PortalGrievances() {
                                             required
                                         />
                                     </div>
-                                    <Button type="submit" disabled={isPending} className="w-full bg-amber-600 hover:bg-amber-700">
+                                    <Button type="submit" disabled={isPending} className="w-full bg-amber-600 hover:bg-amber-700 dark:bg-amber-700 dark:hover:bg-amber-600">
                                         {isPending ? "Submitting..." : "Submit Grievance"}
                                     </Button>
                                 </form>
@@ -94,12 +94,12 @@ export default function PortalGrievances() {
                     </CardHeader>
                     <CardContent>
                         {isLoading ? (
-                            <p className="text-sm text-slate-500 animate-pulse">Loading grievances...</p>
+                            <p className="text-sm text-muted-foreground animate-pulse">Loading grievances...</p>
                         ) : grievances?.length === 0 ? (
-                            <div className="p-12 text-center text-slate-500 border-dashed border-2 rounded-xl border-slate-200">
-                                <AlertTriangle className="w-12 h-12 mx-auto text-slate-300 mb-4" />
-                                <p className="text-lg font-medium text-slate-600">No open grievances</p>
-                                <p className="text-sm mt-1">You haven't filed any grievances.</p>
+                            <div className="p-12 text-center text-muted-foreground border-dashed border-2 rounded-xl border-border">
+                                <AlertTriangle className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
+                                <p className="text-lg font-medium text-foreground">No open grievances</p>
+                                <p className="text-sm mt-1 text-muted-foreground">You haven't filed any grievances.</p>
                             </div>
                         ) : (
                             <div className="rounded-md border">
@@ -113,15 +113,15 @@ export default function PortalGrievances() {
                                     <TableBody>
                                         {grievances?.map((g) => (
                                             <TableRow key={g.id}>
-                                                <TableCell className="font-mono text-xs text-slate-500">{g.id.split('-')[0].toUpperCase()}</TableCell>
-                                                <TableCell className="font-medium text-slate-800">{g.issue_type}</TableCell>
+                                                <TableCell className="font-mono text-xs text-muted-foreground">{g.id.split('-')[0].toUpperCase()}</TableCell>
+                                                <TableCell className="font-medium text-foreground">{g.issue_type}</TableCell>
                                                 <TableCell>
                                                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium uppercase
-                            ${g.status === 'resolved' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
+                            ${g.status === 'resolved' ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200' : 'bg-amber-100 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200'}`}>
                                                         {g.status}
                                                     </span>
                                                 </TableCell>
-                                                <TableCell className="text-slate-500 text-sm">{new Date(g.created_at).toLocaleDateString()}</TableCell>
+                                                <TableCell className="text-muted-foreground text-sm">{new Date(g.created_at).toLocaleDateString()}</TableCell>
                                             </TableRow>
                                         ))}
                                     </TableBody>

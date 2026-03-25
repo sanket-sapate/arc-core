@@ -65,6 +65,7 @@ func main() {
 	if err != nil {
 		logger.Fatal("Vault connection failed", zap.Error(err))
 	}
+	defer vaultManager.Close()
 	secrets, err := vaultManager.GetKV2(secretPath)
 	if err != nil {
 		logger.Fatal("Failed to load secrets from Vault", zap.Error(err))

@@ -57,63 +57,26 @@ func TestListAuditLogs_Success(t *testing.T) {
 	defer ctrl.Finish()
 
 	orgID := mustUUID()
+	logger := zaptest.NewLogger(t)
 
 	q := mock.NewMockQuerier(ctrl)
 	q.EXPECT().
-		ListAuditLogs(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(_ context.Context, arg db.ListAuditLogsParams) ([]db.AuditLog, error) {
-			assert.Equal(t, mustPgUUID(orgID), arg.OrganizationID)
-			assert.Equal(t, int32(50), arg.Limit)
-			assert.Equal(t, int32(0), arg.Offset)
-			return []db.AuditLog{
-				{EventType: "VendorCreated", SourceService: "trm"},
-				{EventType: "DPACreated", SourceService: "trm"},
-			}, nil
-		})
-
-	c, rec := newEchoWithOrg(t, http.MethodGet, "/v1/audit-logs", orgID)
-	logger := zaptest.NewLogger(t)
-
-	e := echo.New()
-	handler.RegisterRoutes(e, q, logger)
-
-	// Call handler directly via the context
-	err := e.Router().Find(http.MethodGet, "/v1/audit-logs", c)
-	_ = err
-	// Use httptest server round-trip for a cleaner test
-	server := httptest.NewServer(e)
-	defer server.Close()
-
-	reqHTTP, _ := http.NewRequest(http.MethodGet, server.URL+"/v1/audit-logs", nil)
-	reqHTTP.Header.Set("X-Internal-Org-Id", orgID)
-	// We re-mount RegisterRoutes on a fresh echo for the httptest server above,
-	// so we verify the recorder from the direct Echo context approach below.
-	_ = rec
-	_ = c
-
-	// Direct approach: exercise the registered handler via the echo context.
-	// Reset and use the recorder from newEchoWithOrg.
-	req2 := httptest.NewRequest(http.MethodGet, "/v1/audit-logs?limit=50&offset=0", nil)
-	req2 = req2.WithContext(ctxWithOrg(orgID))
-	rec2 := httptest.NewRecorder()
-	e2 := echo.New()
-	c2 := e2.NewContext(req2, rec2)
-
-	q2 := mock.NewMockQuerier(ctrl)
-	q2.EXPECT().
 		ListAuditLogs(gomock.Any(), gomock.Any()).
 		Return([]db.AuditLog{
 			{EventType: "VendorCreated"},
 		}, nil)
 
-	handler.RegisterRoutes(e2, q2, logger)
+	req := httptest.NewRequest(http.MethodGet, "/v1/audit-logs?limit=50&offset=0", nil)
+	req = req.WithContext(ctxWithOrg(orgID))
+	rec := httptest.NewRecorder()
+	e := echo.New()
+	handler.RegisterRoutes(e, q, logger)
 
-	// Walk router and invoke the GET /v1/audit-logs handler
-	e2.ServeHTTP(rec2, req2)
-	assert.Equal(t, http.StatusOK, rec2.Code)
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
 
 	var body map[string]interface{}
-	require.NoError(t, json.Unmarshal(rec2.Body.Bytes(), &body))
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
 	assert.Equal(t, float64(1), body["count"])
 }
 

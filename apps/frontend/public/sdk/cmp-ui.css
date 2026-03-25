@@ -1,0 +1,17 @@
+/* cmp-ui.css */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+.cmp-root {
+    font-family: 'Inter', sans-serif;
+    --foreground: #0f172a;
+    --background: #ffffff;
+    --primary: #000;
+    --primary-foreground: #fff;
+    --border: #e2e8f0;
+    --ring: #000;
+}
+
+/* Add z-index to ensure banner floats above the landing page */
+.cmp-root>div {
+    z-index: 9999 !important;
+}

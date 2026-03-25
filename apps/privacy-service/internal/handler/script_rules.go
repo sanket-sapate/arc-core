@@ -49,6 +49,9 @@ type UpdateScriptRuleRequest struct {
 }
 
 func (h *ScriptRuleHandler) CreateScriptRule(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "script_blocking.create") {
+		return echo.NewHTTPError(http.StatusForbidden, "missing script_blocking.create permission")
+	}
 	orgIDStr, ok := coreMw.GetOrgID(c.Request().Context())
 	if !ok {
 		h.logger.Warn("Missing org ID")
@@ -89,6 +92,9 @@ func (h *ScriptRuleHandler) CreateScriptRule(c echo.Context) error {
 }
 
 func (h *ScriptRuleHandler) ListScriptRules(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "script_blocking.read") {
+		return echo.NewHTTPError(http.StatusForbidden, "missing script_blocking.read permission")
+	}
 	orgIDStr, ok := coreMw.GetOrgID(c.Request().Context())
 	if !ok {
 		h.logger.Warn("Missing org ID")
@@ -118,6 +124,9 @@ func (h *ScriptRuleHandler) ListScriptRules(c echo.Context) error {
 }
 
 func (h *ScriptRuleHandler) GetScriptRule(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "script_blocking.read") {
+		return echo.NewHTTPError(http.StatusForbidden, "missing script_blocking.read permission")
+	}
 	orgIDStr, ok := coreMw.GetOrgID(c.Request().Context())
 	if !ok {
 		h.logger.Warn("Missing org ID")
@@ -151,6 +160,9 @@ func (h *ScriptRuleHandler) GetScriptRule(c echo.Context) error {
 }
 
 func (h *ScriptRuleHandler) UpdateScriptRule(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "script_blocking.update") {
+		return echo.NewHTTPError(http.StatusForbidden, "missing script_blocking.update permission")
+	}
 	orgIDStr, ok := coreMw.GetOrgID(c.Request().Context())
 	if !ok {
 		h.logger.Warn("Missing org ID")
@@ -210,6 +222,9 @@ func (h *ScriptRuleHandler) UpdateScriptRule(c echo.Context) error {
 }
 
 func (h *ScriptRuleHandler) DeleteScriptRule(c echo.Context) error {
+	if !coreMw.HasPermission(c.Request().Context(), "script_blocking.delete") {
+		return echo.NewHTTPError(http.StatusForbidden, "missing script_blocking.delete permission")
+	}
 	orgIDStr, ok := coreMw.GetOrgID(c.Request().Context())
 	if !ok {
 		h.logger.Warn("Missing org ID")

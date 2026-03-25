@@ -3,6 +3,8 @@ plugins:
 - proxy-rewrite
 - cors
 - ext-plugin-pre-req
+- jwt-auth
+- limit-count
 ext-plugin:
   path_for_test: /tmp/runner.sock
 deployment:

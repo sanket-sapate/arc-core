@@ -26,24 +26,24 @@ export default function PortalVerify() {
     }, [isSuccess, navigate]);
 
     return (
-        <div className="min-h-screen flex flex-col bg-slate-50">
+        <div className="min-h-screen flex flex-col bg-background">
             <Header />
             <main className="flex-1 flex items-center justify-center p-8 container mx-auto">
-                <div className="max-w-md w-full p-8 bg-white border rounded-xl shadow-sm text-center space-y-4">
+                <div className="max-w-md w-full p-8 bg-card border rounded-xl shadow-sm text-center space-y-4">
                     {!token ? (
-                        <div className="text-red-500 font-medium">Invalid magic link (Missing token).</div>
+                        <div className="text-destructive font-medium">Invalid magic link (Missing token).</div>
                     ) : isPending ? (
                         <div className="space-y-4">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 mx-auto"></div>
-                            <p className="text-slate-600 font-medium">Verifying your secure link...</p>
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-foreground mx-auto"></div>
+                            <p className="text-muted-foreground font-medium">Verifying your secure link...</p>
                         </div>
                     ) : isError ? (
-                        <div className="text-red-500 space-y-2">
+                        <div className="text-destructive space-y-2">
                             <p className="font-semibold text-lg">Verification Failed</p>
                             <p className="text-sm">{(error as any)?.response?.data?.error || "Invalid or expired magic link."}</p>
                         </div>
                     ) : isSuccess ? (
-                        <div className="text-green-600 space-y-2">
+                        <div className="text-green-600 dark:text-green-400 space-y-2">
                             <p className="font-semibold text-lg">Successfully Authenticated</p>
                             <p className="text-sm">Redirecting to your dashboard...</p>
                         </div>

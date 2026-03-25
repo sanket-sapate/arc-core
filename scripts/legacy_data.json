@@ -1,0 +1,230 @@
+{
+    "tenants": [
+        {
+            "id": "b7de9cd2-4ca2-4132-8fc3-f0e179ed8b54",
+            "name": "PixPivot Organization",
+            "created_at": "2026-02-04T12:00:00Z"
+        }
+    ],
+    "frameworks": [
+        {
+            "id": "5a4492b4-1136-403d-8910-fa891bbed9ac",
+            "name": "Internal Assessments",
+            "version": "1.0",
+            "description": "Internal Assessments",
+            "created_at": "2026-02-06 00:47:33.380263+00",
+            "updated_at": "2026-02-06 00:47:33.380263+00"
+        },
+        {
+            "id": "642d4126-a972-4f6c-ae67-e6cb9434d515",
+            "name": "Cloud Security Readiness",
+            "version": "1.0",
+            "description": "Evaluates baseline security controls for cloud-hosted systems.",
+            "created_at": "2026-02-07 13:27:31.188648+00",
+            "updated_at": "2026-02-07 13:27:31.188648+00"
+        }
+    ],
+    "audit_cycles": [
+        {
+            "id": "25f6bcc0-4f45-45f5-a4c2-9209fe562915",
+            "name": "Test",
+            "status": "planned",
+            "created_at": "2026-02-05 04:44:50.287939+00",
+            "updated_at": "2026-02-05 04:44:50.287939+00"
+        },
+        {
+            "id": "c9463e29-5e9d-4333-9356-c918ef4f9ebd",
+            "name": "Q4 (Testing )_",
+            "status": "active",
+            "start_date": "2026-02-07",
+            "end_date": "2026-02-14",
+            "created_at": "2026-02-07 14:49:47.481371+00",
+            "updated_at": "2026-02-07 14:49:47.481371+00"
+        }
+    ],
+    "data_dictionary": [
+        {
+            "id": "4ae98e07-1a07-4ff0-ab04-afd4a59ba5de",
+            "name": "Phone Number",
+            "category": "pii",
+            "description": "User Phone Number",
+            "sensitivity": "normal",
+            "active": true,
+            "created_at": "2026-02-04 12:30:59.490297+00",
+            "updated_at": "2026-02-04 12:30:59.490297+00"
+        },
+        {
+            "id": "5b0b9559-cc04-40f0-8329-aa4b50464150",
+            "name": "Email",
+            "category": "pii",
+            "description": "email",
+            "sensitivity": "normal",
+            "active": true,
+            "created_at": "2026-02-05 04:40:37.095541+00",
+            "updated_at": "2026-02-05 04:40:37.095541+00"
+        },
+        {
+            "id": "595b63df-ed5d-4a41-ac32-4daae2cde43a",
+            "name": "PHONE",
+            "category": "PII",
+            "description": "Auto-discovered PHONE from scan",
+            "sensitivity": "High",
+            "active": true,
+            "created_at": "2026-02-06 13:56:56.612916+00",
+            "updated_at": "2026-02-06 13:56:56.612916+00"
+        },
+        {
+            "id": "ee37f9a0-9605-492b-9817-3ee2f8b292f6",
+            "name": "Email Address",
+            "category": "PII",
+            "description": "Personal or work email address",
+            "sensitivity": "normal",
+            "active": true,
+            "created_at": "2026-02-09 04:05:57.931053+00",
+            "updated_at": "2026-02-09 04:05:57.931053+00"
+        },
+        {
+            "id": "326dfb7f-893b-46d4-9cb9-14d688252d13",
+            "name": "Physical Address",
+            "category": "PII",
+            "description": "Residential or mailing address",
+            "sensitivity": "normal",
+            "active": true,
+            "created_at": "2026-02-09 04:05:57.931053+00",
+            "updated_at": "2026-02-09 04:05:57.931053+00"
+        },
+        {
+            "id": "65dbc9f9-2f65-4b68-8f41-d0f21ec17009",
+            "name": "Date of Birth",
+            "category": "PII",
+            "description": "Birth date for age verification",
+            "sensitivity": "normal",
+            "active": true,
+            "created_at": "2026-02-09 04:05:57.931053+00",
+            "updated_at": "2026-02-09 04:05:57.931053+00"
+        },
+        {
+            "id": "4ea5efee-4767-4fb3-9e6a-86367b3d4ab3",
+            "name": "Gender",
+            "category": "PII",
+            "description": "Gender identity",
+            "sensitivity": "normal",
+            "active": true,
+            "created_at": "2026-02-09 04:05:57.931053+00",
+            "updated_at": "2026-02-09 04:05:57.931053+00"
+        },
+        {
+            "id": "8eeae39e-0312-4e74-9d1a-d6c4292f287c",
+            "name": "Nationality",
+            "category": "PII",
+            "description": "Country of citizenship",
+            "sensitivity": "normal",
+            "active": true,
+            "created_at": "2026-02-09 04:05:57.931053+00",
+            "updated_at": "2026-02-09 04:05:57.931053+00"
+        },
+        {
+            "id": "4e0ed142-79dc-4499-8bc2-c0f592b03dab",
+            "name": "Passport Number",
+            "category": "PII",
+            "description": "Government issued passport ID",
+            "sensitivity": "high",
+            "active": true,
+            "created_at": "2026-02-09 04:05:57.931053+00",
+            "updated_at": "2026-02-09 04:05:57.931053+00"
+        },
+        {
+            "id": "2fbb8246-bba4-4b07-a0e1-a795d8dfe42f",
+            "name": "Driver License Number",
+            "category": "PII",
+            "description": "Government issued driver license ID",
+            "sensitivity": "high",
+            "active": true,
+            "created_at": "2026-02-09 04:05:57.931053+00",
+            "updated_at": "2026-02-09 04:05:57.931053+00"
+        },
+        {
+            "id": "732d902f-cfc4-4d77-b112-938d5db82cba",
+            "name": "Social Security Number",
+            "category": "PII",
+            "description": "National identification number",
+            "sensitivity": "critical",
+            "active": true,
+            "created_at": "2026-02-09 04:05:57.931053+00",
+            "updated_at": "2026-02-09 04:05:57.931053+00"
+        }
+    ],
+    "vendors": [
+        {
+            "id": "b3b38512-46bd-4316-9ae6-20fbd4a85fe7",
+            "name": "Alphabet Inc.",
+            "contact_email": "sundar@gmail.com",
+            "risk_level": "low",
+            "tenant_id": "b7de9cd2-4ca2-4132-8fc3-f0e179ed8b54",
+            "compliance_status": null,
+            "created_at": "2026-02-09 03:21:03.918913+00",
+            "updated_at": "2026-02-09 03:21:03.918913+00"
+        },
+        {
+            "id": "15ce73f0-7521-471f-ae04-902f209b169c",
+            "name": "RNR Consulting Pvt. Ltd.",
+            "contact_email": "info@consultrnr.com",
+            "risk_level": "low",
+            "tenant_id": "b7de9cd2-4ca2-4132-8fc3-f0e179ed8b54",
+            "compliance_status": null,
+            "created_at": "2026-02-04 12:59:06.34804+00",
+            "updated_at": "2026-02-04 12:59:06.34804+00"
+        },
+        {
+            "id": "2d9db73c-d0e2-4988-9eb7-25ccf8c68558",
+            "name": "InsightMetrics",
+            "contact_email": "compliance@insightmetrics.io",
+            "risk_level": "low",
+            "tenant_id": "b7de9cd2-4ca2-4132-8fc3-f0e179ed8b54",
+            "compliance_status": null,
+            "created_at": "2026-02-07 13:48:13.521742+00",
+            "updated_at": "2026-02-07 13:48:13.521742+00"
+        }
+    ],
+    "assessments": [
+        {
+            "id": "7cd03b96-67fa-45f5-8b0e-ef4ca2336425",
+            "vendor_id": "15ce73f0-7521-471f-ae04-902f209b169c",
+            "framework_id": "5a4492b4-1136-403d-8910-fa891bbed9ac",
+            "status": "draft",
+            "score": null,
+            "created_at": "2026-02-06 01:13:11.721096+00",
+            "updated_at": "2026-02-06 01:13:11.721096+00"
+        },
+        {
+            "id": "c13168a9-43f4-4727-ac93-a3342f157c33",
+            "vendor_id": "b3b38512-46bd-4316-9ae6-20fbd4a85fe7",
+            "framework_id": "642d4126-a972-4f6c-ae67-e6cb9434d515",
+            "status": "draft",
+            "score": null,
+            "created_at": "2026-02-08 10:07:51.642797+00",
+            "updated_at": "2026-02-08 10:07:51.642797+00"
+        }
+    ],
+    "cookie_banners": [
+        {
+            "id": "4e280e37-b9f5-494c-8acb-7f670ac5b6bb",
+            "domain": "thepixpivot.com",
+            "name": "Default Banner",
+            "active": true,
+            "config": {},
+            "created_at": "2026-02-04 12:11:37.635398+00",
+            "updated_at": "2026-02-04 12:11:37.635398+00",
+            "title": "We use cookies",
+            "message": "We use cookies to enhance your browsing experience...",
+            "accept_button_text": "Accept All",
+            "reject_button_text": "Reject All",
+            "settings_button_text": "Cookie Settings",
+            "position": "bottom",
+            "theme": "light"
+        }
+    ],
+    "privacy_requests": [],
+    "grievances": [],
+    "cookie_consents": []
+}

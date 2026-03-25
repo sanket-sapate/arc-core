@@ -52,6 +52,13 @@ func (h *SDKHandler) Register(e *echo.Echo) {
 	v1.GET("/banner/:organization_id/:domain", h.GetBanner)
 	v1.POST("/consent", h.SubmitConsent)
 	v1.GET("/widget.js", h.GetWidget)
+
+	// Public widget-compatible endpoints used by the embedded CMP widget
+	// (cmp-core.js). These use X-API-Key header for org identity instead of
+	// path parameters to match the widget SDK's expected URL contract.
+	pub := e.Group("/api/v1/public")
+	pub.GET("/cookie-banner", h.GetPublicBanner)
+	pub.POST("/cookie-consent", h.SubmitPublicConsent)
 }
 
 // ── GET /v1/sdk/banner/:organization_id/:domain ───────────────────────────
@@ -112,7 +119,7 @@ func (h *SDKHandler) GetBanner(c echo.Context) error {
 // @Success      200  {string}  string  "JavaScript widget code"
 // @Router       /v1/sdk/widget.js [get]
 func (h *SDKHandler) GetWidget(c echo.Context) error {
-	ctx, span := otel.Tracer("public-api").Start(c.Request().Context(), "sdk.GetWidget")
+	_, span := otel.Tracer("public-api").Start(c.Request().Context(), "sdk.GetWidget")
 	defer span.End()
 
 	c.Response().Header().Set("Cache-Control", "public, max-age=300, stale-while-revalidate=60")
@@ -135,13 +142,14 @@ type consentPayload struct {
 // Including created_at allows the consumer to record the exact client-side
 // submission time rather than the DB insertion time.
 type natsConsentEvent struct {
-	OrganizationID string          `json:"organization_id"`
-	Domain         string          `json:"domain"`
-	AnonymousID    string          `json:"anonymous_id"`
-	Consents       json.RawMessage `json:"consents"`
-	IPAddress      string          `json:"ip_address"`
-	UserAgent      string          `json:"user_agent"`
-	SubmittedAt    time.Time       `json:"submitted_at"`
+	OrganizationID string                 `json:"organization_id"`
+	Domain         string                 `json:"domain"`
+	AnonymousID    string                 `json:"anonymous_id"`
+	Consents       json.RawMessage        `json:"consents"`
+	IPAddress      string                 `json:"ip_address"`
+	UserAgent      string                 `json:"user_agent"`
+	SubmittedAt    time.Time              `json:"submitted_at"`
+	FormData       map[string]interface{} `json:"form_data,omitempty"`
 }
 
 // SubmitConsent accepts a widget consent payload, publishes it to NATS
@@ -211,6 +219,171 @@ func (h *SDKHandler) SubmitConsent(c echo.Context) error {
 
 	h.logger.Info("consent event published",
 		zap.String("organization_id", req.OrganizationID),
+		zap.String("subject", subjectConsentSubmitted),
+	)
+
+	return c.JSON(http.StatusAccepted, map[string]string{"status": "queued"})
+}
+
+// ── GET /api/v1/public/cookie-banner ─────────────────────────────────────
+
+// GetPublicBanner is the widget-compatible variant of GetBanner.
+// The widget SDK sends the consent form / API key in the X-API-Key header
+// and the domain as a query parameter — e.g.
+//
+//	GET /api/v1/public/cookie-banner?domain=example.com
+//	X-API-Key: <org_id or consent-form-id>
+//
+// The key is looked up in Redis using the same key format as the SDK endpoint
+// so that cache writes from the privacy-service warm both paths.
+//
+// @Summary      Get public banner config (widget)
+// @Description  Returns banner configuration for the CMP widget. Uses X-API-Key header as organization identifier and domain query param.
+// @ID           get-public-banner
+// @Tags         Public
+// @Produce      json
+// @Param        domain   query     string  true  "Website domain (e.g. example.com)"
+// @Param        X-API-Key  header  string  true  "Organization ID or consent form API key"
+// @Success      200  {object}  map[string]interface{}  "Banner configuration JSON"
+// @Failure      400  {object}  map[string]string       "Missing domain or API key"
+// @Failure      404  {object}  map[string]string       "Banner not found in cache"
+// @Failure      503  {object}  map[string]string       "Redis unavailable"
+// @Router       /api/v1/public/cookie-banner [get]
+func (h *SDKHandler) GetPublicBanner(c echo.Context) error {
+	ctx, span := otel.Tracer("public-api").Start(c.Request().Context(), "public.GetPublicBanner")
+	defer span.End()
+
+	apiKey := c.Request().Header.Get("X-API-Key")
+	if apiKey == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "X-API-Key header is required"})
+	}
+
+	domain := c.QueryParam("domain")
+	if domain == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "domain query parameter is required"})
+	}
+
+	// The API key doubles as the organization_id in the banner cache key.
+	// This matches the write path in the privacy-service which uses the
+	// org_id when populating the cache.
+	key := fmt.Sprintf(redisBannerKeyFmt, apiKey, domain)
+
+	val, err := h.redis.Get(ctx, key).Result()
+	if err == redis.Nil {
+		h.logger.Info("public banner cache miss",
+			zap.String("api_key", apiKey),
+			zap.String("domain", domain),
+		)
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "banner not found"})
+	}
+	if err != nil {
+		h.logger.Error("redis GET failed", zap.String("key", key), zap.Error(err))
+		return c.JSON(http.StatusServiceUnavailable, map[string]string{"error": "service unavailable"})
+	}
+
+	h.logger.Info("public banner served",
+		zap.String("api_key", apiKey),
+		zap.String("domain", domain),
+	)
+
+	c.Response().Header().Set("Cache-Control", "public, max-age=300, stale-while-revalidate=60")
+	c.Response().Header().Set("Content-Type", "application/json")
+	return c.String(http.StatusOK, val)
+}
+
+// ── POST /api/v1/public/cookie-consent ───────────────────────────────────
+
+// publicConsentPayload is the body accepted from the CMP widget SDK.
+// It extends the SDK payload with form_data to capture the user's
+// submitted form fields (e.g. email) at the time of consent.
+type publicConsentPayload struct {
+	OrganizationID string                 `json:"organization_id"`
+	Domain         string                 `json:"domain"`
+	AnonymousID    string                 `json:"anonymous_id"`
+	Consents       json.RawMessage        `json:"consents"`
+	FormData       map[string]interface{} `json:"form_data,omitempty"`
+	IPAddress      string                 `json:"ip_address"`
+	UserAgent      string                 `json:"user_agent"`
+}
+
+// SubmitPublicConsent is the widget-compatible variant of SubmitConsent.
+// It accepts the CMP widget's consent payload, which includes optional
+// form_data (e.g. email address captured at consent time), and publishes
+// it to the same NATS subject for async processing by the privacy-service.
+//
+// Organization ID can be supplied either in the JSON body or via the
+// X-API-Key header — the body takes precedence.
+//
+// @Summary      Submit public consent (widget)
+// @Description  Accepts consent choices and optional form data from the CMP widget. Publishes to NATS for async persistence. Returns 202 immediately.
+// @ID           submit-public-consent
+// @Tags         Public
+// @Accept       json
+// @Produce      json
+// @Param        X-API-Key  header  string                true   "Organization ID or consent form API key"
+// @Param        body       body    publicConsentPayload  true   "Consent payload"
+// @Success      202  {object}  map[string]string  "Consent queued"
+// @Failure      400  {object}  map[string]string  "Invalid request body or missing fields"
+// @Failure      503  {object}  map[string]string  "NATS unavailable"
+// @Router       /api/v1/public/cookie-consent [post]
+func (h *SDKHandler) SubmitPublicConsent(c echo.Context) error {
+	ctx, span := otel.Tracer("public-api").Start(c.Request().Context(), "public.SubmitPublicConsent")
+	defer span.End()
+
+	var req publicConsentPayload
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+	}
+
+	// Resolve organization_id: body takes precedence, fall back to X-API-Key header.
+	if req.OrganizationID == "" {
+		req.OrganizationID = c.Request().Header.Get("X-API-Key")
+	}
+	if req.OrganizationID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "organization_id or X-API-Key header is required"})
+	}
+	if req.Domain == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "domain is required"})
+	}
+	if req.AnonymousID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "anonymous_id is required"})
+	}
+
+	if req.IPAddress == "" {
+		req.IPAddress = c.RealIP()
+	}
+	if req.UserAgent == "" {
+		req.UserAgent = c.Request().UserAgent()
+	}
+
+	event := natsConsentEvent{
+		OrganizationID: req.OrganizationID,
+		Domain:         req.Domain,
+		AnonymousID:    req.AnonymousID,
+		Consents:       req.Consents,
+		IPAddress:      req.IPAddress,
+		UserAgent:      req.UserAgent,
+		SubmittedAt:    time.Now().UTC(),
+		FormData:       req.FormData,
+	}
+
+	data, err := json.Marshal(event)
+	if err != nil {
+		h.logger.Error("failed to marshal public consent event", zap.Error(err))
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "internal error"})
+	}
+
+	if _, err := h.nats.JS.Publish(subjectConsentSubmitted, data, nats.Context(ctx)); err != nil {
+		h.logger.Error("NATS publish failed",
+			zap.String("subject", subjectConsentSubmitted),
+			zap.Error(err),
+		)
+		return c.JSON(http.StatusServiceUnavailable, map[string]string{"error": "could not queue consent, please retry"})
+	}
+
+	h.logger.Info("public consent event published",
+		zap.String("organization_id", req.OrganizationID),
+		zap.String("domain", req.Domain),
 		zap.String("subject", subjectConsentSubmitted),
 	)
 

@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 import { type Assessment } from "../types/assessment";
+import { type Vendor } from "../types/vendor";
+import { type Framework } from "../types/framework";
 import { useUpdateAssessmentStatus } from "../api/assessments";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
@@ -16,6 +18,8 @@ import {
 
 interface KanbanBoardProps {
     assessments: Assessment[];
+    vendors: Vendor[];
+    frameworks: Framework[];
     onSelectAssessment: (assessment: Assessment) => void;
 }
 
@@ -26,8 +30,25 @@ const COLUMNS = [
     { id: "completed", label: "Completed", color: "bg-green-50 dark:bg-green-900/20" },
 ] as const;
 
-export function KanbanBoard({ assessments, onSelectAssessment }: KanbanBoardProps) {
+export function KanbanBoard({ assessments, vendors, frameworks, onSelectAssessment }: KanbanBoardProps) {
     const updateStatus = useUpdateAssessmentStatus();
+
+    // Create lookup maps for vendors and frameworks
+    const vendorMap = useMemo(() => {
+        const map = new Map<string, Vendor>();
+        vendors.forEach(vendor => {
+            if (vendor.id) map.set(vendor.id, vendor);
+        });
+        return map;
+    }, [vendors]);
+
+    const frameworkMap = useMemo(() => {
+        const map = new Map<string, Framework>();
+        frameworks.forEach(framework => {
+            if (framework.id) map.set(framework.id, framework);
+        });
+        return map;
+    }, [frameworks]);
 
     const grouped = useMemo(() => {
         const groups: Record<string, Assessment[]> = {
@@ -73,9 +94,11 @@ export function KanbanBoard({ assessments, onSelectAssessment }: KanbanBoardProp
                                     <div className="space-y-1">
                                         <CardTitle className="text-sm font-medium leading-none flex items-center gap-2">
                                             <FileText className="w-4 h-4 text-muted-foreground" />
-                                            {/* We rely on the parent or API to attach the Vendor/Framework Names if doing joins, otherwise we show the ID for now or user solves joining logic up the tree */}
-                                            Assessment #{assessment.id?.substring(0, 8)}
+                                            {vendorMap.get(assessment.vendor_id || "")?.name || "Unknown Vendor"}
                                         </CardTitle>
+                                        <p className="text-xs text-muted-foreground">
+                                            {frameworkMap.get(assessment.framework_id || "")?.name || "Unknown Framework"}
+                                        </p>
                                     </div>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>

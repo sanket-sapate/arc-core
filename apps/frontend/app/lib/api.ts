@@ -11,6 +11,16 @@ export const api = axios.create({
     },
 });
 
+// ── Portal API Instance (no organization context required) ─────────────────────────
+
+export const portalApi = axios.create({
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:9080', // APISIX Gateway
+    headers: {
+        'Content-Type': 'application/json',
+    },
+    withCredentials: true, // Important for cookies
+});
+
 import { User } from 'oidc-client-ts';
 
 // ── Request Interceptor ────────────────────────────────────────────────────
@@ -18,6 +28,12 @@ import { User } from 'oidc-client-ts';
 
 api.interceptors.request.use((config) => {
     const { activeOrganization } = useSessionStore.getState();
+
+    // For FormData payloads, remove the default Content-Type so the browser
+    // can set multipart/form-data with the correct boundary automatically.
+    if (config.data instanceof FormData) {
+        delete config.headers['Content-Type'];
+    }
 
     // Bearer token — derived from oidc-client-ts session storage
     // Keycloak OIDC via APISIX gateway at http://localhost:9080/realms/arc

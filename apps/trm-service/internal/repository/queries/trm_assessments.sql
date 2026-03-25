@@ -13,14 +13,22 @@ WHERE id = $1 AND organization_id = $2;
 -- ── Framework Questions ───────────────────────────────────────────────────
 
 -- name: CreateFrameworkQuestion :one
-INSERT INTO framework_questions (id, framework_id, question_text, question_type, options)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO framework_questions (id, framework_id, question_text, question_type, options, import_batch_id, import_row_number, import_source)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING *;
 
 -- name: ListFrameworkQuestions :many
 SELECT * FROM framework_questions
 WHERE framework_id = $1
 ORDER BY created_at ASC;
+
+-- name: DeleteFrameworkQuestion :exec
+DELETE FROM framework_questions
+WHERE id = $1;
+
+-- name: DeleteFrameworkQuestionsByBatch :exec
+DELETE FROM framework_questions
+WHERE import_batch_id = $1;
 
 -- ── Audit Cycles ──────────────────────────────────────────────────────────
 

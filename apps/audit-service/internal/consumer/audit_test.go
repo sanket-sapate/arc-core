@@ -41,7 +41,7 @@ func TestAuditConsumer_ProcessEvent(t *testing.T) {
 		AggregateID:   "00000000-0000-0000-0000-000000000002",
 		ActorID:       "00000000-0000-0000-0000-000000000003",
 		Type:          "ItemCreated",
-		Payload:       json.RawMessage(`{"status":"success"}`),
+		Payload:       json.RawMessage(`{"status":"success","organization_id":"00000000-0000-0000-0000-000000000099"}`),
 	}
 	validJSON := buildEventJSON(t, validEvent)
 
@@ -69,6 +69,36 @@ func TestAuditConsumer_ProcessEvent(t *testing.T) {
 			}),
 			mockSetup:     func() {}, // DB never called — terminated as poison pill
 			expectedError: "malformed payload",
+		},
+		{
+			name:    "Missing organization_id — dead-lettered",
+			payload: buildEventJSON(t, OutboxEvent{
+				ID:            "00000000-0000-0000-0000-000000000010",
+				AggregateType: "item",
+				AggregateID:   "00000000-0000-0000-0000-000000000002",
+				ActorID:       "00000000-0000-0000-0000-000000000003",
+				Type:          "ItemCreated",
+				Payload:       json.RawMessage(`{"status":"success"}`),
+			}),
+			mockSetup:     func() {}, // DB never called — dropped as unresolvable
+			expectedError: "unresolvable organization_id: event_id=00000000-0000-0000-0000-000000000010",
+		},
+		{
+			name:    "Legacy tenant_id fallback",
+			payload: buildEventJSON(t, OutboxEvent{
+				ID:            "00000000-0000-0000-0000-000000000011",
+				AggregateType: "item",
+				AggregateID:   "00000000-0000-0000-0000-000000000002",
+				ActorID:       "00000000-0000-0000-0000-000000000003",
+				Type:          "ItemCreated",
+				Payload:       json.RawMessage(`{"tenant_id":"00000000-0000-0000-0000-000000000088"}`),
+			}),
+			mockSetup: func() {
+				mockQuerier.EXPECT().
+					InsertAuditLog(gomock.Any(), gomock.Any()).
+					Return(nil)
+			},
+			expectedError: "",
 		},
 		{
 			name:    "Database Insertion Error",

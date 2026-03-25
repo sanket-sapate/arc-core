@@ -19,10 +19,13 @@ func NewPermissionsHandler(q db.Querier, logger *zap.Logger) *PermissionsHandler
 }
 
 func (h *PermissionsHandler) Register(e *echo.Echo) {
-	g := e.Group("/permissions")
-	g.GET("", h.ListPermissions)
+	e.GET("/api/iam/permissions", h.ListPermissions)
 }
 
+// ListPermissions returns the global permission catalog.
+// This is intentionally NOT tenant-scoped — permissions are system-wide
+// definitions (e.g. "item:read", "iam:manage") that all organizations share.
+// Individual tenants get access to permissions via role assignments.
 func (h *PermissionsHandler) ListPermissions(c echo.Context) error {
 	perms, err := h.querier.ListPermissions(c.Request().Context())
 	if err != nil {

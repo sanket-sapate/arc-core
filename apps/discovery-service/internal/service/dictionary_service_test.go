@@ -34,48 +34,48 @@ func newOrgID() string { return uuid.New().String() }
 // ── hand-rolled mockQuerier matching db.Querier exactly ──────────────────
 
 type mockQuerier struct {
-	createDictFn     func(context.Context, db.CreateDictionaryItemParams) (db.DataDictionaryItem, error)
-	getDictFn        func(context.Context, db.GetDictionaryItemParams) (db.DataDictionaryItem, error)
-	getDictByNameFn  func(context.Context, db.GetDictionaryItemByNameParams) (db.DataDictionaryItem, error)
-	listDictFn       func(context.Context, interface{}) ([]db.DataDictionaryItem, error)
-	updateDictFn     func(context.Context, db.UpdateDictionaryItemParams) (db.DataDictionaryItem, error)
+	createDictFn     func(context.Context, db.CreateDictionaryItemParams) (db.DataDictionary, error)
+	getDictFn        func(context.Context, db.GetDictionaryItemParams) (db.DataDictionary, error)
+	getDictByNameFn  func(context.Context, db.GetDictionaryItemByNameParams) (db.DataDictionary, error)
+	listDictFn       func(context.Context, pgtype.UUID) ([]db.DataDictionary, error)
+	updateDictFn     func(context.Context, db.UpdateDictionaryItemParams) (db.DataDictionary, error)
 	insertOutboxFn   func(context.Context, db.InsertOutboxEventParams) error
 	createJobFn      func(context.Context, db.CreateScanJobParams) (db.ScanJob, error)
 	getJobFn         func(context.Context, db.GetScanJobParams) (db.ScanJob, error)
 	listPendingFn    func(context.Context) ([]db.ScanJob, error)
 	updateStatusFn   func(context.Context, db.UpdateScanJobStatusParams) (db.ScanJob, error)
-	markSyncedFn     func(context.Context, interface{}) error
+	markSyncedFn     func(context.Context, pgtype.UUID) error
 }
 
-func (m *mockQuerier) CreateDictionaryItem(ctx context.Context, arg db.CreateDictionaryItemParams) (db.DataDictionaryItem, error) {
+func (m *mockQuerier) CreateDictionaryItem(ctx context.Context, arg db.CreateDictionaryItemParams) (db.DataDictionary, error) {
 	if m.createDictFn != nil {
 		return m.createDictFn(ctx, arg)
 	}
-	return db.DataDictionaryItem{}, nil
+	return db.DataDictionary{}, nil
 }
-func (m *mockQuerier) GetDictionaryItem(ctx context.Context, arg db.GetDictionaryItemParams) (db.DataDictionaryItem, error) {
+func (m *mockQuerier) GetDictionaryItem(ctx context.Context, arg db.GetDictionaryItemParams) (db.DataDictionary, error) {
 	if m.getDictFn != nil {
 		return m.getDictFn(ctx, arg)
 	}
-	return db.DataDictionaryItem{}, nil
+	return db.DataDictionary{}, nil
 }
-func (m *mockQuerier) GetDictionaryItemByName(ctx context.Context, arg db.GetDictionaryItemByNameParams) (db.DataDictionaryItem, error) {
+func (m *mockQuerier) GetDictionaryItemByName(ctx context.Context, arg db.GetDictionaryItemByNameParams) (db.DataDictionary, error) {
 	if m.getDictByNameFn != nil {
 		return m.getDictByNameFn(ctx, arg)
 	}
-	return db.DataDictionaryItem{}, nil
+	return db.DataDictionary{}, nil
 }
-func (m *mockQuerier) ListDictionaryItems(ctx context.Context, orgID interface{}) ([]db.DataDictionaryItem, error) {
+func (m *mockQuerier) ListDictionaryItems(ctx context.Context, orgID pgtype.UUID) ([]db.DataDictionary, error) {
 	if m.listDictFn != nil {
 		return m.listDictFn(ctx, orgID)
 	}
 	return nil, nil
 }
-func (m *mockQuerier) UpdateDictionaryItem(ctx context.Context, arg db.UpdateDictionaryItemParams) (db.DataDictionaryItem, error) {
+func (m *mockQuerier) UpdateDictionaryItem(ctx context.Context, arg db.UpdateDictionaryItemParams) (db.DataDictionary, error) {
 	if m.updateDictFn != nil {
 		return m.updateDictFn(ctx, arg)
 	}
-	return db.DataDictionaryItem{}, nil
+	return db.DataDictionary{}, nil
 }
 func (m *mockQuerier) InsertOutboxEvent(ctx context.Context, arg db.InsertOutboxEventParams) error {
 	if m.insertOutboxFn != nil {
@@ -107,7 +107,7 @@ func (m *mockQuerier) UpdateScanJobStatus(ctx context.Context, arg db.UpdateScan
 	}
 	return db.ScanJob{}, nil
 }
-func (m *mockQuerier) MarkScanJobSynced(ctx context.Context, id interface{}) error {
+func (m *mockQuerier) MarkScanJobSynced(ctx context.Context, id pgtype.UUID) error {
 	if m.markSyncedFn != nil {
 		return m.markSyncedFn(ctx, id)
 	}
@@ -144,6 +144,12 @@ func (m *mockScanner) GetJobStatus(ctx context.Context, tenantID, jobID string) 
 func (m *mockScanner) GetJobFindings(ctx context.Context, tenantID, jobID string, page int) ([]client.Finding, bool, error) {
 	return nil, false, nil
 }
+func (m *mockScanner) NetworkScan(ctx context.Context, tenantID, targetRange string, ports []int) error {
+	return nil
+}
+func (m *mockScanner) ProxyRequest(ctx context.Context, tenantID, method, path string, body interface{}) ([]byte, error) {
+	return nil, nil
+}
 
 var _ client.ScannerClient = (*mockScanner)(nil)
 
@@ -153,10 +159,10 @@ func TestGetDictionaryItem_Success(t *testing.T) {
 	orgID := newOrgID()
 	itemID := newOrgID()
 
-	q := &mockQuerier{getDictFn: func(_ context.Context, arg db.GetDictionaryItemParams) (db.DataDictionaryItem, error) {
+	q := &mockQuerier{getDictFn: func(_ context.Context, arg db.GetDictionaryItemParams) (db.DataDictionary, error) {
 		assert.Equal(t, mustPgUUID(itemID), arg.ID)
 		assert.Equal(t, mustPgUUID(orgID), arg.OrganizationID)
-		return db.DataDictionaryItem{ID: mustPgUUID(itemID), Name: "Email"}, nil
+		return db.DataDictionary{ID: mustPgUUID(itemID), Name: "Email"}, nil
 	}}
 	svc := service.NewDictionaryService(nil, q, &mockScanner{})
 	item, err := svc.GetDictionaryItem(ctxWithOrg(orgID), itemID)
@@ -166,8 +172,8 @@ func TestGetDictionaryItem_Success(t *testing.T) {
 }
 
 func TestGetDictionaryItem_NotFound(t *testing.T) {
-	q := &mockQuerier{getDictFn: func(_ context.Context, _ db.GetDictionaryItemParams) (db.DataDictionaryItem, error) {
-		return db.DataDictionaryItem{}, errors.New("no rows")
+	q := &mockQuerier{getDictFn: func(_ context.Context, _ db.GetDictionaryItemParams) (db.DataDictionary, error) {
+		return db.DataDictionary{}, errors.New("no rows")
 	}}
 	svc := service.NewDictionaryService(nil, q, &mockScanner{})
 	_, err := svc.GetDictionaryItem(ctxWithOrg(newOrgID()), newOrgID())
@@ -197,8 +203,8 @@ func TestGetDictionaryItem_MissingOrgID(t *testing.T) {
 func TestListDictionaryItems_Success(t *testing.T) {
 	orgID := newOrgID()
 
-	q := &mockQuerier{listDictFn: func(_ context.Context, _ interface{}) ([]db.DataDictionaryItem, error) {
-		return []db.DataDictionaryItem{
+	q := &mockQuerier{listDictFn: func(_ context.Context, _ pgtype.UUID) ([]db.DataDictionary, error) {
+		return []db.DataDictionary{
 			{Name: "Email"},
 			{Name: "Phone"},
 		}, nil
@@ -258,13 +264,13 @@ func TestGetScanJob_Success(t *testing.T) {
 
 	q := &mockQuerier{getJobFn: func(_ context.Context, arg db.GetScanJobParams) (db.ScanJob, error) {
 		assert.Equal(t, mustPgUUID(jobID), arg.ID)
-		return db.ScanJob{ID: mustPgUUID(jobID), Status: "COMPLETED"}, nil
+		return db.ScanJob{ID: mustPgUUID(jobID), Status: pgtype.Text{String: "COMPLETED", Valid: true}}, nil
 	}}
 	svc := service.NewScanService(nil, q, &mockScanner{})
 	job, err := svc.GetScanJob(ctxWithOrg(orgID), jobID)
 
 	require.NoError(t, err)
-	assert.Equal(t, "COMPLETED", job.Status)
+	assert.Equal(t, "COMPLETED", job.Status.String)
 }
 
 func TestGetScanJob_NotFound(t *testing.T) {
@@ -333,13 +339,13 @@ func TestTriggerScan_Success_StoresJob(t *testing.T) {
 	q := &mockQuerier{createJobFn: func(_ context.Context, arg db.CreateScanJobParams) (db.ScanJob, error) {
 		jobStoredCalled = true
 		assert.Equal(t, "job-001", arg.ThirdPartyJobID)
-		assert.Equal(t, "PENDING", arg.Status)
-		return db.ScanJob{ThirdPartyJobID: "job-001", Status: "PENDING"}, nil
+		assert.Equal(t, "PENDING", arg.Status.String)
+		return db.ScanJob{ThirdPartyJobID: "job-001", Status: pgtype.Text{String: "PENDING", Valid: true}}, nil
 	}}
 	svc := service.NewScanService(nil, q, &mockScanner{})
 	job, err := svc.TriggerScan(ctxWithOrg(newOrgID()), service.TriggerScanInput{SourceID: "src-1"})
 
 	require.NoError(t, err)
 	assert.True(t, jobStoredCalled)
-	assert.Equal(t, "PENDING", job.Status)
+	assert.Equal(t, "PENDING", job.Status.String)
 }

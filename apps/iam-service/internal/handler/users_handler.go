@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/labstack/echo/v4"
 	"go.uber.org/zap"
@@ -25,13 +26,13 @@ func NewUsersHandler(q db.Querier, logger *zap.Logger) *UsersHandler {
 }
 
 // Register binds user routes to the Echo instance.
-// APISIX rewrites /api/iam/users/me → /users/me before proxying.
 func (h *UsersHandler) Register(e *echo.Echo) {
-	g := e.Group("/users")
+	g := e.Group("/api/iam/users")
 	g.GET("/me", h.GetMe)
 	g.GET("", h.ListOrganizationUsers)
 	g.POST("/invite", h.InviteUser)
-	g.PATCH("/:id/role", h.UpdateUserRole)
+	g.POST("/:id/roles", h.AddUserRole)
+	g.DELETE("/:id/roles/:role_id", h.RemoveUserRole)
 	g.DELETE("/:id", h.RemoveUser)
 }
 
@@ -40,12 +41,12 @@ func (h *UsersHandler) Register(e *echo.Echo) {
 // jwtClaims is the minimal set of claims we extract from the Keycloak JWT.
 // We do NOT verify the signature here — APISIX has already validated the token.
 type jwtClaims struct {
-	Sub               string `json:"sub"`
-	Email             string `json:"email"`
-	PreferredUsername  string `json:"preferred_username"`
-	GivenName         string `json:"given_name"`
-	FamilyName        string `json:"family_name"`
-	Name              string `json:"name"`
+	Sub              string `json:"sub"`
+	Email            string `json:"email"`
+	PreferredUsername string `json:"preferred_username"`
+	GivenName        string `json:"given_name"`
+	FamilyName       string `json:"family_name"`
+	Name             string `json:"name"`
 }
 
 // parseJWTClaims does an *unverified* decode of the JWT payload.
@@ -82,8 +83,6 @@ type meUserResponse struct {
 type meOrgResponse struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
-	Slug string `json:"slug"`
-	Tier string `json:"tier"`
 }
 
 type meResponse struct {
@@ -171,14 +170,14 @@ func (h *UsersHandler) GetMe(c echo.Context) error {
 		})
 	}
 
-	// 4. Fetch organization memberships
+	// 5. Fetch organization memberships
 	orgs, err := h.querier.GetUserOrganizations(c.Request().Context(), userID)
 	if err != nil {
 		h.logger.Error("failed to fetch user organizations", zap.Error(err))
 		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "internal error"})
 	}
 
-	// 5. Build response
+	// 6. Build response
 	orgList := make([]meOrgResponse, 0, len(orgs))
 	for _, o := range orgs {
 		oid := ""
@@ -188,8 +187,6 @@ func (h *UsersHandler) GetMe(c echo.Context) error {
 		orgList = append(orgList, meOrgResponse{
 			ID:   oid,
 			Name: o.OrganizationName,
-			Slug: strings.ToLower(strings.ReplaceAll(o.OrganizationName, " ", "-")),
-			Tier: "free", // default tier
 		})
 	}
 
@@ -255,6 +252,19 @@ func getOrgIDFromContext(c echo.Context) (pgtype.UUID, error) {
 	return orgID, err
 }
 
+// getCurrentUserID extracts the authenticated user's UUID from the APISIX-injected header.
+func getCurrentUserID(c echo.Context) (pgtype.UUID, bool) {
+	userStr := c.Request().Header.Get("X-Internal-User-Id")
+	var uid pgtype.UUID
+	if userStr == "" {
+		return uid, false
+	}
+	if err := uid.Scan(userStr); err != nil {
+		return uid, false
+	}
+	return uid, uid.Valid
+}
+
 func (h *UsersHandler) ListOrganizationUsers(c echo.Context) error {
 	orgID, err := getOrgIDFromContext(c)
 	if err != nil || !orgID.Valid {
@@ -288,12 +298,15 @@ func (h *UsersHandler) ListOrganizationUsers(c echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
+// ── Invite User ─────────────────────────────────────────────────────────────
+
 type InviteUserRequest struct {
 	Email  string `json:"email"`
 	RoleID string `json:"role_id"`
 }
 
-// For simplicity, this acts as "Invite" or simply creating the link if the user doesn't exist yet via UpsertUser.
+// InviteUser creates a user in the IAM database (if not exists) and assigns
+// them to the caller's organization with the specified role.
 func (h *UsersHandler) InviteUser(c echo.Context) error {
 	orgID, err := getOrgIDFromContext(c)
 	if err != nil || !orgID.Valid {
@@ -305,28 +318,78 @@ func (h *UsersHandler) InviteUser(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 	}
 
-	// 1. In a real system you'd call Keycloak to create the user, send email, etc.
-	// For now, we perform an UpsertUser to ensure they exist locally.
-	// We generate a deterministic UUID based on email to sidestep full KC integration.
-	// Or we use a real UUID. Let's just generate a UUID, but UpsertUser needs it.
-	var newID pgtype.UUID
-	// Generate random internal UUID for the invite
-	newID.Scan("00000000-0000-0000-0000-000000000000") // This will fail conflict or we need a proper UUID
-	
-	h.logger.Info("InviteUser (stub) called", zap.String("email", req.Email))
-	
-	// Better approach: Since we don't have standard "CreateUser" that generates IDs inside IAM without KC,
-	// let's just pretend success and not blow up the database if `UpsertUser` requires ID.
-	// Actually no, we should insert into `users` if they don't exist.
-	
-	return c.JSON(http.StatusCreated, map[string]string{"message": "user invited"})
+	if req.Email == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "email is required"})
+	}
+	if req.RoleID == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "role_id is required"})
+	}
+
+	var roleID pgtype.UUID
+	if err := roleID.Scan(req.RoleID); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid role_id"})
+	}
+
+	ctx := c.Request().Context()
+
+	// 1. Check if user already exists by email.
+	existingUser, err := h.querier.GetUserByEmail(ctx, req.Email)
+	var userID pgtype.UUID
+	if err != nil {
+		// User does not exist — create them with a new UUID.
+		// When the user later authenticates via Keycloak, the webhook
+		// SyncUser upsert will update this row with the real Keycloak sub.
+		newUUID := uuid.New()
+		if err := userID.Scan(newUUID.String()); err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to generate user id"})
+		}
+
+		_, err := h.querier.UpsertUser(ctx, db.UpsertUserParams{
+			ID:    userID,
+			Email: req.Email,
+		})
+		if err != nil {
+			h.logger.Error("failed to create invited user", zap.Error(err))
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to create user"})
+		}
+
+		h.logger.Info("created new user via invite",
+			zap.String("email", req.Email),
+			zap.String("user_id", newUUID.String()),
+		)
+	} else {
+		userID = existingUser.ID
+	}
+
+	// 2. Assign the role to the user in this organization (idempotent).
+	if err := h.querier.AddUserRole(ctx, db.AddUserRoleParams{
+		UserID:         userID,
+		OrganizationID: orgID,
+		RoleID:         roleID,
+	}); err != nil {
+		h.logger.Error("failed to assign role to invited user", zap.Error(err))
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to assign role"})
+	}
+
+	h.logger.Info("user invited successfully",
+		zap.String("email", req.Email),
+		zap.String("org_id", pgUUIDToString(orgID)),
+		zap.String("role_id", req.RoleID),
+	)
+
+	return c.JSON(http.StatusCreated, map[string]string{
+		"message": "user invited",
+		"user_id": pgUUIDToString(userID),
+	})
 }
 
-type UpdateUserRoleRequest struct {
+// ── Add / Remove Role (multi-role support) ──────────────────────────────────
+
+type AddUserRoleRequest struct {
 	RoleID string `json:"role_id"`
 }
 
-func (h *UsersHandler) UpdateUserRole(c echo.Context) error {
+func (h *UsersHandler) AddUserRole(c echo.Context) error {
 	orgID, err := getOrgIDFromContext(c)
 	if err != nil || !orgID.Valid {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "missing organization ID"})
@@ -338,7 +401,7 @@ func (h *UsersHandler) UpdateUserRole(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid user id"})
 	}
 
-	var req UpdateUserRoleRequest
+	var req AddUserRoleRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body"})
 	}
@@ -348,19 +411,49 @@ func (h *UsersHandler) UpdateUserRole(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid role id"})
 	}
 
-	params := db.UpdateUserRoleParams{
+	if err := h.querier.AddUserRole(c.Request().Context(), db.AddUserRoleParams{
 		UserID:         userID,
 		OrganizationID: orgID,
 		RoleID:         roleID,
-	}
-
-	if err := h.querier.UpdateUserRole(c.Request().Context(), params); err != nil {
-		h.logger.Error("failed to update user role", zap.Error(err))
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to update role"})
+	}); err != nil {
+		h.logger.Error("failed to add user role", zap.Error(err))
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to add role"})
 	}
 
 	return c.JSON(http.StatusOK, map[string]string{"status": "success"})
 }
+
+func (h *UsersHandler) RemoveUserRole(c echo.Context) error {
+	orgID, err := getOrgIDFromContext(c)
+	if err != nil || !orgID.Valid {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "missing organization ID"})
+	}
+
+	userIDStr := c.Param("id")
+	var userID pgtype.UUID
+	if err := userID.Scan(userIDStr); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid user id"})
+	}
+
+	roleIDStr := c.Param("role_id")
+	var roleID pgtype.UUID
+	if err := roleID.Scan(roleIDStr); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid role id"})
+	}
+
+	if err := h.querier.RemoveUserRole(c.Request().Context(), db.RemoveUserRoleParams{
+		UserID:         userID,
+		OrganizationID: orgID,
+		RoleID:         roleID,
+	}); err != nil {
+		h.logger.Error("failed to remove user role", zap.Error(err))
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "failed to remove role"})
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+// ── Remove User (with self-deletion guard) ──────────────────────────────────
 
 func (h *UsersHandler) RemoveUser(c echo.Context) error {
 	orgID, err := getOrgIDFromContext(c)
@@ -372,6 +465,12 @@ func (h *UsersHandler) RemoveUser(c echo.Context) error {
 	var userID pgtype.UUID
 	if err := userID.Scan(userIDStr); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid user id"})
+	}
+
+	// Self-deletion guard: prevent users from removing themselves
+	currentUserID, ok := getCurrentUserID(c)
+	if ok && currentUserID == userID {
+		return c.JSON(http.StatusForbidden, map[string]string{"error": "cannot remove yourself from the organization"})
 	}
 
 	params := db.RemoveUserFromOrganizationParams{

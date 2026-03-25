@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -49,6 +50,8 @@ func (h *PortalAuthHandler) VerifyMagicLink(c echo.Context) error {
 		return errResponse(c, http.StatusBadRequest, "invalid request body")
 	}
 
+	fmt.Printf("VerifyMagicLink called with token: %s\n", input.Token)
+
 	jwtToken, err := h.svc.VerifyMagicLink(c.Request().Context(), input.Token)
 	if err != nil {
 		if err == service.ErrInvalidToken {
@@ -56,6 +59,8 @@ func (h *PortalAuthHandler) VerifyMagicLink(c echo.Context) error {
 		}
 		return handleSvcError(c, err)
 	}
+
+	fmt.Printf("JWT token generated: %s\n", jwtToken)
 
 	// Set HttpOnly cookie
 	cookie := new(http.Cookie)

@@ -86,7 +86,7 @@ const getJobStructure = async (jobId: string): Promise<JobStructure> => {
     return JobStructureSchema.parse(data);
 };
 
-const triggerScan = async (payload: { source_id: string; profile_id?: string }): Promise<unknown> => {
+const triggerScan = async (payload: { source_id: string; type?: string; profile_id?: string }): Promise<unknown> => {
     const { data } = await api.post('/api/discovery/scans/trigger', payload);
     return data;
 };

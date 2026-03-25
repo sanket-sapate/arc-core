@@ -12,8 +12,8 @@ export const DashboardStatsSchema = z.object({
     jobs_completed: z.number().optional(),
     jobs_running: z.number().optional(),
     jobs_failed: z.number().optional(),
-    findings_by_likelihood: z.record(z.number()).optional(),
-    findings_by_type: z.record(z.number()).optional(),
+    findings_by_likelihood: z.record(z.string(), z.number()).optional(),
+    findings_by_type: z.record(z.string(), z.number()).optional(),
 }).passthrough();
 
 export type DashboardStats = z.infer<typeof DashboardStatsSchema>;

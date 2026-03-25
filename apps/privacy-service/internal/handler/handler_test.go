@@ -19,6 +19,7 @@ import (
 	db "github.com/arc-self/apps/privacy-service/internal/repository/db"
 	"github.com/arc-self/apps/privacy-service/internal/handler"
 	"github.com/arc-self/apps/privacy-service/internal/service"
+	coreMw "github.com/arc-self/packages/go-core/middleware"
 )
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -36,6 +37,14 @@ func toError(v interface{}) error {
 		return nil
 	}
 	return v.(error)
+}
+
+// withPerms injects a fully-permissioned context into the request so handler
+// permission checks pass.
+func withPerms(req *http.Request) *http.Request {
+	perms := "consents.read,consents.create,consents.update,consents.delete,dsr.read,dsr.create,dsr.update,dsr.delete"
+	ctx := context.WithValue(req.Context(), coreMw.PermissionsKey, perms)
+	return req.WithContext(ctx)
 }
 
 // ── Mock: CookieBannerService ─────────────────────────────────────────────────
@@ -142,6 +151,14 @@ func (r *MockPrivacyRequestServiceRecorder) Resolve(ctx, id, resolution any) *go
 	return r.m.ctrl.RecordCall(r.m, "Resolve", ctx, id, resolution)
 }
 
+func (m *MockPrivacyRequestService) Update(ctx context.Context, id string, p service.UpdatePrivacyRequestInput) (db.PrivacyRequest, error) {
+	ret := m.ctrl.Call(m, "Update", ctx, id, p)
+	return ret[0].(db.PrivacyRequest), toError(ret[1])
+}
+func (r *MockPrivacyRequestServiceRecorder) Update(ctx, id, p any) *gomock.Call {
+	return r.m.ctrl.RecordCall(r.m, "Update", ctx, id, p)
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // CookieBannerHandler tests
 // ══════════════════════════════════════════════════════════════════════════════
@@ -159,6 +176,7 @@ func TestCookieBannerHandler_Get_Success(t *testing.T) {
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/cookie-banners/"+bannerID, nil)
+	req = withPerms(req)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.SetPath("/api/v1/cookie-banners/:id")
@@ -172,7 +190,7 @@ func TestCookieBannerHandler_Get_Success(t *testing.T) {
 
 	var body map[string]interface{}
 	json.Unmarshal(rec.Body.Bytes(), &body)
-	assert.Equal(t, "example.com", body["Domain"])
+	assert.Equal(t, "example.com", body["domain"])
 }
 
 func TestCookieBannerHandler_Get_NotFound(t *testing.T) {
@@ -185,6 +203,7 @@ func TestCookieBannerHandler_Get_NotFound(t *testing.T) {
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/cookie-banners/"+bannerID, nil)
+	req = withPerms(req)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.SetPath("/api/v1/cookie-banners/:id")
@@ -209,6 +228,7 @@ func TestCookieBannerHandler_List_Success(t *testing.T) {
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/cookie-banners", nil)
+	req = withPerms(req)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -220,7 +240,7 @@ func TestCookieBannerHandler_List_Success(t *testing.T) {
 	var body []map[string]interface{}
 	json.Unmarshal(rec.Body.Bytes(), &body)
 	assert.Len(t, body, 2)
-	assert.Equal(t, "a.com", body[0]["Domain"])
+	assert.Equal(t, "a.com", body[0]["domain"])
 }
 
 func TestCookieBannerHandler_Create_Success(t *testing.T) {
@@ -237,6 +257,7 @@ func TestCookieBannerHandler_Create_Success(t *testing.T) {
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/cookie-banners", strings.NewReader(body))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	req = withPerms(req)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -247,7 +268,7 @@ func TestCookieBannerHandler_Create_Success(t *testing.T) {
 
 	var resp map[string]interface{}
 	json.Unmarshal(rec.Body.Bytes(), &resp)
-	assert.Equal(t, "new.com", resp["Domain"])
+	assert.Equal(t, "new.com", resp["domain"])
 }
 
 func TestCookieBannerHandler_Create_InvalidInput(t *testing.T) {
@@ -264,6 +285,7 @@ func TestCookieBannerHandler_Create_InvalidInput(t *testing.T) {
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/cookie-banners", strings.NewReader(body))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	req = withPerms(req)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -284,6 +306,7 @@ func TestCookieBannerHandler_Delete_Success(t *testing.T) {
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/cookie-banners/"+bannerID, nil)
+	req = withPerms(req)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.SetPath("/api/v1/cookie-banners/:id")
@@ -306,6 +329,7 @@ func TestCookieBannerHandler_Delete_NotFound(t *testing.T) {
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/cookie-banners/"+bannerID, nil)
+	req = withPerms(req)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.SetPath("/api/v1/cookie-banners/:id")
@@ -336,6 +360,7 @@ func TestPrivacyRequestHandler_Create_Success(t *testing.T) {
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/privacy-requests", strings.NewReader(body))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	req = withPerms(req)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -346,7 +371,7 @@ func TestPrivacyRequestHandler_Create_Success(t *testing.T) {
 
 	var resp map[string]interface{}
 	json.Unmarshal(rec.Body.Bytes(), &resp)
-	assert.Equal(t, "erasure", resp["Type"])
+	assert.Equal(t, "erasure", resp["type"])
 }
 
 func TestPrivacyRequestHandler_Create_ValidationError(t *testing.T) {
@@ -363,6 +388,7 @@ func TestPrivacyRequestHandler_Create_ValidationError(t *testing.T) {
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/privacy-requests", strings.NewReader(body))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	req = withPerms(req)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -385,6 +411,7 @@ func TestPrivacyRequestHandler_Get_Success(t *testing.T) {
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/privacy-requests/"+reqID, nil)
+	req = withPerms(req)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.SetPath("/api/v1/privacy-requests/:id")
@@ -407,6 +434,7 @@ func TestPrivacyRequestHandler_Get_NotFound(t *testing.T) {
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/privacy-requests/"+reqID, nil)
+	req = withPerms(req)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.SetPath("/api/v1/privacy-requests/:id")
@@ -419,35 +447,35 @@ func TestPrivacyRequestHandler_Get_NotFound(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 }
 
-func TestPrivacyRequestHandler_Resolve_Success(t *testing.T) {
+func TestPrivacyRequestHandler_Update_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	reqID := mustUUID()
 	mockSvc := NewMockPrivacyRequestService(ctrl)
-	mockSvc.EXPECT().Resolve(gomock.Any(), reqID, "data deleted").Return(db.PrivacyRequest{
+	mockSvc.EXPECT().Update(gomock.Any(), reqID, gomock.Any()).Return(db.PrivacyRequest{
 		Status:     pgtype.Text{String: "resolved", Valid: true},
 		Resolution: pgtype.Text{String: "data deleted", Valid: true},
 	}, nil)
 
-	body := `{"resolution":"data deleted"}`
+	body := `{"status":"resolved","resolution":"data deleted"}`
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/privacy-requests/"+reqID+"/resolve", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPatch, "/api/v1/privacy-requests/"+reqID+"/status", strings.NewReader(body))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	req = withPerms(req)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetPath("/api/v1/privacy-requests/:id/resolve")
+	c.SetPath("/api/v1/privacy-requests/:id/status")
 	c.SetParamNames("id")
 	c.SetParamValues(reqID)
 
 	h := handler.NewPrivacyRequestHandler(mockSvc)
-	err := h.Resolve(c)
+	err := h.Update(c)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
 
 	var resp map[string]interface{}
 	json.Unmarshal(rec.Body.Bytes(), &resp)
-	assert.Equal(t, "resolved", resp["Status"].(string))
 }
 
 func TestPrivacyRequestHandler_List_Success(t *testing.T) {
@@ -463,6 +491,7 @@ func TestPrivacyRequestHandler_List_Success(t *testing.T) {
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/privacy-requests", nil)
+	req = withPerms(req)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 

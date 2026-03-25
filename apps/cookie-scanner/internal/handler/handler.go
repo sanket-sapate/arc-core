@@ -26,6 +26,7 @@ func RegisterRoutes(e *echo.Echo, svc *service.ScannerService, logger *zap.Logge
 	e.POST("/scans", h.StartScan)
 	e.GET("/scans", h.ListScans)
 	e.GET("/scans/:id", h.GetScan)
+	e.POST("/scans/:id/rescan", h.Rescan)
 }
 
 // resolveTenantID extracts the org/tenant ID from context, falling back to a zero UUID.
@@ -89,4 +90,26 @@ func (h *ScanHandler) GetScan(c echo.Context) error {
 		"scan":    scan,
 		"cookies": cookies,
 	})
+}
+
+// POST /scans/:id/rescan — re-scan the same URL from an existing scan.
+func (h *ScanHandler) Rescan(c echo.Context) error {
+	tid := resolveTenantID(c)
+
+	originalID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid scan id"})
+	}
+
+	original, _, err := h.svc.GetScan(c.Request().Context(), originalID)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "original scan not found"})
+	}
+
+	newScan, err := h.svc.StartScan(c.Request().Context(), tid, original.Url)
+	if err != nil {
+		h.logger.Error("Rescan failed", zap.Error(err))
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": err.Error()})
+	}
+	return c.JSON(http.StatusAccepted, newScan)
 }

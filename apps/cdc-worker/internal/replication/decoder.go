@@ -11,12 +11,13 @@ import (
 // OutboxRow is the canonical JSON structure published to NATS,
 // matching the downstream audit-service's OutboxEvent.
 type OutboxRow struct {
-	ID            string          `json:"id"`
-	AggregateType string          `json:"aggregate_type"`
-	AggregateID   string          `json:"aggregate_id"`
-	ActorID       string          `json:"actor_id"`
-	Type          string          `json:"type"`
-	Payload       json.RawMessage `json:"payload"`
+	ID             string          `json:"id"`
+	OrganizationID string          `json:"organization_id"`
+	AggregateType  string          `json:"aggregate_type"`
+	AggregateID    string          `json:"aggregate_id"`
+	ActorID        string          `json:"actor_id"`
+	EventType      string          `json:"event_type"`
+	Payload        json.RawMessage `json:"payload"`
 }
 
 // Decoder maintains a registry of RelationMessages keyed by relation ID
@@ -69,12 +70,13 @@ func (d *Decoder) DecodeInsert(msg *pglogrepl.InsertMessageV2) ([]byte, error) {
 	}
 
 	row := OutboxRow{
-		ID:            values["id"],
-		AggregateType: values["aggregate_type"],
-		AggregateID:   values["aggregate_id"],
-		ActorID:       values["actor_id"],
-		Type:          values["type"],
-		Payload:       json.RawMessage(values["payload"]),
+		ID:             values["id"],
+		OrganizationID: values["organization_id"],
+		AggregateType:  values["aggregate_type"],
+		AggregateID:    values["aggregate_id"],
+		ActorID:        values["actor_id"],
+		EventType:      values["event_type"],
+		Payload:        json.RawMessage(values["payload"]),
 	}
 
 	data, err := json.Marshal(row)
@@ -84,7 +86,7 @@ func (d *Decoder) DecodeInsert(msg *pglogrepl.InsertMessageV2) ([]byte, error) {
 
 	d.logger.Debug("decoded insert",
 		zap.String("id", row.ID),
-		zap.String("type", row.Type),
+		zap.String("event_type", row.EventType),
 		zap.String("aggregate_type", row.AggregateType),
 	)
 

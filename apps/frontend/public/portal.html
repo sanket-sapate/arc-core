@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CMP Consent Portal</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .consent-item {
+            margin: 10px 0;
+            text-align: left;
+            border: 1px solid #ccc;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="login-view">
+        <h2>CMP Login</h2>
+        <p>Please authenticate to manage your consents.</p>
+        <form id="login-form">
+            <div style="margin-bottom: 10px;">
+                <input type="text" placeholder="Username" required style="padding: 8px; width: 80%;">
+            </div>
+            <div style="margin-bottom: 10px;">
+                <input type="password" placeholder="Password" required style="padding: 8px; width: 80%;">
+            </div>
+            <button type="submit">Login</button>
+        </form>
+    </div>
+
+    <div id="consent-view" style="display: none;">
+        <h2>Consent Required</h2>
+        <p>Please review and grant the following consents to proceed.</p>
+
+        <form id="consent-form">
+            <div id="consents-container"></div>
+            <br>
+            <div style="display: flex; gap: 10px; justify-content: flex-start;">
+                <button type="submit" id="btn-confirm">Confirm & Grant</button>
+                <button type="button" id="btn-cancel" style="background: #6c757d;">Cancel</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // Parse URL params
+        const urlParams = new URLSearchParams(window.location.search);
+        const consents = urlParams.get('consents') ? urlParams.get('consents').split(',') : [];
+        const clientId = urlParams.get('clientId');
+
+        const loginView = document.getElementById('login-view');
+        const consentView = document.getElementById('consent-view');
+        const container = document.getElementById('consents-container');
+
+        // Check session
+        const session = localStorage.getItem('cmp_session');
+        if (session) {
+            showConsentView();
+        }
+
+        // Login Handler
+        document.getElementById('login-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+            // Mock authentication
+            localStorage.setItem('cmp_session', 'active');
+            showConsentView();
+        });
+
+        async function showConsentView() {
+            loginView.style.display = 'none';
+            consentView.style.display = 'block';
+            await renderConsents();
+        }
+
+        async function renderConsents() {
+            container.innerHTML = '<p>Loading details...</p>';
+            if (consents.length === 0) {
+                container.innerHTML = '<p>No specific consents required.</p>';
+                return;
+            }
+
+            try {
+                // Fetch details from backend
+                const res = await fetch('/api/v1/public/purposes/details', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': clientId
+                    },
+                    body: JSON.stringify({ purpose_names: consents })
+                });
+
+                if (!res.ok) throw new Error("Failed to fetch purpose details");
+                const purposes = await res.json();
+
+                container.innerHTML = '';
+                consents.forEach(consentName => {
+                    const purpose = purposes.find(p => p.Name === consentName);
+                    const div = document.createElement('div');
+                    div.className = 'consent-item';
+
+                    let dataObjectsHtml = '';
+                    if (purpose && purpose.data_objects && purpose.data_objects.length > 0) {
+                        dataObjectsHtml = `<div style="margin-top:5px; font-size: 0.85em; color: #666;">
+                            <strong>Data collected:</strong> ${purpose.data_objects.join(', ')}
+                        </div>`;
+                    } else {
+                        // Fallback or empty
+                        dataObjectsHtml = `<div style="margin-top:5px; font-size: 0.85em; color: #999;">
+                            <em>No specific data objects listed.</em>
+                        </div>`;
+                    }
+
+                    const desc = purpose ? purpose.Description : "Processing required";
+
+                    div.innerHTML = `
+                        <label style="display:block; margin-bottom: 5px;">
+                            <input type="checkbox" name="consent" value="${consentName}" required>
+                            I agree to <strong>${consentName}</strong> processing.
+                        </label>
+                        <div style="font-size: 0.9em; margin-left: 20px;">${desc}</div>
+                        <div style="margin-left: 20px;">${dataObjectsHtml}</div>
+                    `;
+                    container.appendChild(div);
+                });
+
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = '<p style="color:red">Error loading consent details. Please contact support.</p>';
+            }
+        }
+
+        // Confirm Handler
+        document.getElementById('consent-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            // In a real app, we would make an API call to the backend here to record the consent
+            // and get a receipt ID. For this demo, we simulate it.
+
+            const receiptId = 'rcp_' + Math.random().toString(36).substr(2, 9);
+
+            const message = {
+                source: 'CMP_WINDOW',
+                status: 'AUTHORIZED',
+                receiptId: receiptId,
+                timestamp: new Date().toISOString()
+            };
+
+            // Send back to parent
+            if (window.opener) {
+                window.opener.postMessage(message, '*'); // In prod, specify targetOrigin
+                window.close();
+            } else {
+                alert('Cannot communicate with parent window.');
+            }
+        });
+
+        // Cancel Handler
+        document.getElementById('btn-cancel').addEventListener('click', function () {
+            const message = {
+                source: 'CMP_WINDOW',
+                status: 'REJECTED',
+                timestamp: new Date().toISOString()
+            };
+
+            if (window.opener) {
+                window.opener.postMessage(message, '*');
+                window.close();
+            } else {
+                window.close();
+            }
+        });
+    </script>
+</body>
+
+</html>

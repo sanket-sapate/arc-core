@@ -171,7 +171,7 @@ export function ScriptRuleEditor({ open, onOpenChange, initialData }: ScriptRule
                                             </FormControl>
                                             <SelectContent>
                                                 {purposes?.map((p) => (
-                                                    <SelectItem key={p.id} value={p.id}>
+                                                    <SelectItem key={p.id} value={p.id ?? ""}>
                                                         {p.name}
                                                     </SelectItem>
                                                 ))}

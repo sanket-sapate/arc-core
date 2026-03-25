@@ -68,13 +68,16 @@ type Framework struct {
 }
 
 type FrameworkQuestion struct {
-	ID           pgtype.UUID
-	FrameworkID  pgtype.UUID
-	QuestionText string
-	QuestionType pgtype.Text
-	Options      []byte
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
+	ID              pgtype.UUID
+	FrameworkID     pgtype.UUID
+	QuestionText    string
+	QuestionType    pgtype.Text
+	Options         []byte
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	ImportBatchID   pgtype.UUID
+	ImportRowNumber pgtype.Int4
+	ImportSource    pgtype.Text
 }
 
 type OutboxEvent struct {
